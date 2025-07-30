@@ -54,9 +54,6 @@ function ExplorerMode:Initialize()
         }
     end
     
-    -- Remove top bar completely
-    self:RemoveTopBar()
-    
     -- Initialize position tracking
     self:InitializePositionTracking()
     
@@ -65,6 +62,9 @@ function ExplorerMode:Initialize()
     
     -- Register events
     self:RegisterEvents()
+    
+    -- Set up chat frame hooks to prevent them from being shown
+    self:SetupChatFrameHooks()
     
     -- AzeriteMOP:Debug("Explorer Mode initialized!")
 end
@@ -114,16 +114,67 @@ function ExplorerMode:RegisterEvents()
     end)
 end
 
+function ExplorerMode:SetupChatFrameHooks()
+    -- Hook into chat frames to prevent them from being shown while explorer mode is active
+    local chatFrames = {"ChatFrame1", "ChatFrame1Tab", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"}
+    
+    for _, frameName in ipairs(chatFrames) do
+        local frame = _G[frameName]
+        if frame then
+            -- Store original Show method
+            if not frame._originalShow then
+                frame._originalShow = frame.Show
+            end
+            
+            -- Override Show method
+            frame.Show = function(self, ...)
+                if ExplorerMode.isActive then
+                    -- Don't show if explorer mode is active
+                    return
+                else
+                    -- Call original Show method
+                    return frame._originalShow(self, ...)
+                end
+            end
+        end
+    end
+    
+    -- Also hook into other chat frames
+    for i = 1, 10 do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame and not chatFrame._originalShow then
+            chatFrame._originalShow = chatFrame.Show
+            chatFrame.Show = function(self, ...)
+                if ExplorerMode.isActive then
+                    return
+                else
+                    return chatFrame._originalShow(self, ...)
+                end
+            end
+        end
+        
+        local chatTab = _G["ChatFrame" .. i .. "Tab"]
+        if chatTab and not chatTab._originalShow then
+            chatTab._originalShow = chatTab.Show
+            chatTab.Show = function(self, ...)
+                if ExplorerMode.isActive then
+                    return
+                else
+                    return chatTab._originalShow(self, ...)
+                end
+            end
+        end
+    end
+end
+
 function ExplorerMode:OnEvent(event, ...)
     if event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_LOGIN" then
         self:InitializePositionTracking()
         self:CheckExplorerMode()
     elseif event == "PLAYER_REGEN_DISABLED" then
-        -- Combat started, keep explorer mode active if moving
-        -- AzeriteMOP:Debug("ExplorerMode: Combat started, keeping explorer mode active")
-        if self.isActive then
-            self:ContinuouslyHideUI()
-        end
+        -- Combat started, disable explorer mode
+        -- AzeriteMOP:Debug("ExplorerMode: Combat started, disabling explorer mode")
+        self:DisableExplorerMode()
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Combat ended, check if we should enable explorer mode
         -- AzeriteMOP:Debug("ExplorerMode: Combat ended, checking explorer mode")
@@ -142,12 +193,11 @@ function ExplorerMode:OnUpdate(elapsed)
         return
     end
     
-    -- Check if player is in combat - keep explorer mode active during combat
+    -- Check if player is in combat
     if UnitAffectingCombat("player") then
-        -- Don't disable explorer mode during combat, just keep UI hidden
         if self.isActive then
-            -- AzeriteMOP:Debug("ExplorerMode: Combat detected, keeping explorer mode active")
-            self:ContinuouslyHideUI()
+            -- AzeriteMOP:Debug("ExplorerMode: Combat detected, disabling explorer mode")
+            self:DisableExplorerMode()
         end
         return
     end
@@ -168,8 +218,8 @@ function ExplorerMode:OnUpdate(elapsed)
         -- Ensure frames are visible if explorer mode is active
         if self.isActive then
             self:EnsureFramesVisible()
-            -- Continuously hide UI elements to prevent them from reappearing
-            self:ContinuouslyHideUI()
+            -- Also ensure chat frames stay hidden
+            self:EnsureChatFramesHidden()
         end
         -- Try to get player position
         local mapID = C_Map.GetBestMapForUnit("player")
@@ -220,7 +270,7 @@ function ExplorerMode:OnUpdate(elapsed)
                 -- Check if we should disable explorer mode
                 local delay = AzeriteMOP.db.explorerMode.stationaryDelay
                 if self.stationaryTimer >= delay and self.isActive then
-                    AzeriteMOP:Debug("ExplorerMode: Stationary delay reached (" .. self.stationaryTimer .. "s), disabling explorer mode")
+                    -- AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
                     self:DisableExplorerMode()
                 end
             end
@@ -250,13 +300,16 @@ function ExplorerMode:EnableExplorerMode()
         return
     end
     
-    -- AzeriteMOP:Debug("Enabling Explorer Mode - Fading out UI")
+    -- AzeriteMOP:Debug("Enabling Explorer Mode - Hiding UI elements")
     self.isActive = true
     
-    -- Fade out UI elements
+    -- Hide chat frames
     if AzeriteMOP.db.explorerMode.hideChatFrame then
-        self:FadeOutUI()
+        self:HideChatFrames()
     end
+    
+    -- Hide micro menu and action bars
+    self:HideMicroMenuAndActionBars()
     
     -- Ensure PlayerFrame and TargetFrame stay visible
     self:EnsureFramesVisible()
@@ -272,21 +325,24 @@ function ExplorerMode:DisableExplorerMode()
         return
     end
     
-    -- AzeriteMOP:Debug("Disabling Explorer Mode - Fading in UI")
+    -- AzeriteMOP:Debug("Disabling Explorer Mode - Showing UI elements")
     self.isActive = false
     
-    -- Fade in UI elements
+    -- Show chat frames
     if AzeriteMOP.db.explorerMode.hideChatFrame then
-        self:FadeInUI()
+        self:ShowChatFrames()
     end
+    
+    -- Show micro menu and action bars
+    self:ShowMicroMenuAndActionBars()
     
     -- Ensure PlayerFrame and TargetFrame stay visible
     self:EnsureFramesVisible()
 end
 
--- Function to hide UI elements for explorer mode
+-- Function to hide only chat frames
 function ExplorerMode:HideChatFrames()
-    -- AzeriteMOP:Debug("Hiding UI elements for explorer mode...")
+    -- AzeriteMOP:Debug("Hiding chat frames...")
     
     -- Hide main chat frame and related elements - be more specific
     local chatElements = {
@@ -317,101 +373,111 @@ function ExplorerMode:HideChatFrames()
             -- AzeriteMOP:Debug("Hidden visible ChatFrame" .. i .. "Tab")
         end
     end
+end
+
+-- Function to hide micro menu and action bars
+function ExplorerMode:HideMicroMenuAndActionBars()
+    -- AzeriteMOP:Debug("Hiding micro menu and action bars...")
     
-    -- Hide micromenu (character, spellbook, talents, etc.)
-    local micromenuElements = {
+    -- Hide micro menu buttons (Character, Spellbook, Talents, etc.)
+    local microMenuButtons = {
         "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton", 
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton"
+        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+        "CollectionsMicroButton", "MainMenuMicroButton", 
+        "HelpMicroButton", "StoreMicroButton", "EJMicroButton",
+        "PVPMicroButton", "GroupFinderMicroButton"
     }
-    for _, elementName in ipairs(micromenuElements) do
-        local element = _G[elementName]
-        if element then
-            element:Hide()
-            -- AzeriteMOP:Debug("Hidden " .. elementName)
-        end
-    end
     
-    -- Hide level bar
-    local levelBarElements = {
-        "MainMenuBar", "MainMenuBarArtFrame", "MainMenuBarArtFrameBackground",
-        "MainMenuBarArtFrameLeftCap", "MainMenuBarArtFrameRightCap",
-        "MainMenuBarArtFrameBackground", "MainMenuBarArtFrameBorder"
-    }
-    for _, elementName in ipairs(levelBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Hide()
-            -- AzeriteMOP:Debug("Hidden " .. elementName)
-        end
-    end
-    
-    -- Hide minimap
-    local minimapElements = {
-        "MinimapCluster", "Minimap", "MinimapBackdrop", "MinimapBorder",
-        "MinimapBorderTop", "MinimapZoomIn", "MinimapZoomOut",
-        "MinimapNorthTag", "MinimapZoneTextButton", "GameTimeFrame"
-    }
-    for _, elementName in ipairs(minimapElements) do
-        local element = _G[elementName]
-        if element then
-            element:Hide()
-            -- AzeriteMOP:Debug("Hidden " .. elementName)
-        end
-    end
-    
-    -- Hide action bars
-    local actionBarElements = {
-        "ActionBarUpButton", "ActionBarDownButton", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-        "MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7"
-    }
-    for _, elementName in ipairs(actionBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Hide()
-            -- AzeriteMOP:Debug("Hidden " .. elementName)
-        end
-    end
-    
-    -- Hide individual action bar buttons
-    for i = 1, 12 do
-        local button = _G["ActionButton" .. i]
-        if button then
+    for _, buttonName in ipairs(microMenuButtons) do
+        local button = _G[buttonName]
+        if button and button:IsShown() then
             button:Hide()
-            -- AzeriteMOP:Debug("Hidden ActionButton" .. i)
+            -- AzeriteMOP:Debug("Hidden " .. buttonName)
+        end
+    end
+    
+    -- Hide micro menu bar container
+    local microMenuBar = _G["MainMenuBar"]
+    if microMenuBar and microMenuBar:IsShown() then
+        microMenuBar:Hide()
+        -- AzeriteMOP:Debug("Hidden MainMenuBar")
+    end
+    
+    -- Hide action bars (ActionBar1, ActionBar2, etc.)
+    for i = 1, 6 do
+        local actionBar = _G["ActionBar" .. i]
+        if actionBar and actionBar:IsShown() then
+            actionBar:Hide()
+            -- AzeriteMOP:Debug("Hidden ActionBar" .. i)
         end
         
-        local multiBarButton = _G["MultiBarBottomLeftButton" .. i]
-        if multiBarButton then
-            multiBarButton:Hide()
-            -- AzeriteMOP:Debug("Hidden MultiBarBottomLeftButton" .. i)
+        -- Also try MultiBar frames
+        local multiBar = _G["MultiBar" .. i]
+        if multiBar and multiBar:IsShown() then
+            multiBar:Hide()
+            -- AzeriteMOP:Debug("Hidden MultiBar" .. i)
         end
-        
-        local multiBarRightButton = _G["MultiBarBottomRightButton" .. i]
-        if multiBarRightButton then
-            multiBarRightButton:Hide()
-            -- AzeriteMOP:Debug("Hidden MultiBarBottomRightButton" .. i)
+    end
+    
+    -- Hide specific MoP action bar elements
+    local mopActionBars = {
+        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
+        "ActionBar1", "ActionBar2", "ActionBar3", "ActionBar4"
+    }
+    
+    for _, barName in ipairs(mopActionBars) do
+        local bar = _G[barName]
+        if bar and bar:IsShown() then
+            bar:Hide()
+            -- AzeriteMOP:Debug("Hidden " .. barName)
         end
-        
-        local multiBarRightButton2 = _G["MultiBarRightButton" .. i]
-        if multiBarRightButton2 then
-            multiBarRightButton2:Hide()
-            -- AzeriteMOP:Debug("Hidden MultiBarRightButton" .. i)
-        end
-        
-        local multiBarLeftButton = _G["MultiBarLeftButton" .. i]
-        if multiBarLeftButton then
-            multiBarLeftButton:Hide()
-            -- AzeriteMOP:Debug("Hidden MultiBarLeftButton" .. i)
-        end
+    end
+    
+    -- Hide pet action bar
+    local petActionBar = _G["PetActionBarFrame"]
+    if petActionBar and petActionBar:IsShown() then
+        petActionBar:Hide()
+        -- AzeriteMOP:Debug("Hidden PetActionBarFrame")
+    end
+    
+    -- Hide stance bar
+    local stanceBar = _G["StanceBarFrame"]
+    if stanceBar and stanceBar:IsShown() then
+        stanceBar:Hide()
+        -- AzeriteMOP:Debug("Hidden StanceBarFrame")
+    end
+    
+    -- Hide bonus action bar
+    local bonusActionBar = _G["BonusActionBarFrame"]
+    if bonusActionBar and bonusActionBar:IsShown() then
+        bonusActionBar:Hide()
+        -- AzeriteMOP:Debug("Hidden BonusActionBarFrame")
+    end
+    
+    -- Hide objective tracker frame (try multiple possible names for MoP)
+    local objectiveTracker = _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
+    if objectiveTracker and objectiveTracker:IsShown() then
+        objectiveTracker:Hide()
+        -- AzeriteMOP:Debug("Hidden objective tracker frame")
+    end
+    
+    -- Also try hiding individual quest watch elements
+    local watchFrame = _G["WatchFrame"]
+    if watchFrame and watchFrame:IsShown() then
+        watchFrame:Hide()
+        -- AzeriteMOP:Debug("Hidden WatchFrame")
+    end
+    
+    local questWatchFrame = _G["QuestWatchFrame"]
+    if questWatchFrame and questWatchFrame:IsShown() then
+        questWatchFrame:Hide()
+        -- AzeriteMOP:Debug("Hidden QuestWatchFrame")
     end
 end
 
--- Function to show UI elements for explorer mode
+-- Function to show only chat frames
 function ExplorerMode:ShowChatFrames()
-    -- AzeriteMOP:Debug("Showing UI elements for explorer mode...")
+    -- AzeriteMOP:Debug("Showing chat frames...")
     
     -- Show main chat frame and related elements
     local chatElements = {
@@ -427,95 +493,240 @@ function ExplorerMode:ShowChatFrames()
     
     -- Don't show the parent container as we didn't hide it
     -- This prevents interfering with other UI elements
+end
+
+-- Function to show micro menu and action bars
+function ExplorerMode:ShowMicroMenuAndActionBars()
+    -- AzeriteMOP:Debug("Showing micro menu and action bars...")
     
-    -- Show micromenu (character, spellbook, talents, etc.)
-    local micromenuElements = {
+    -- Show micro menu buttons (Character, Spellbook, Talents, etc.)
+    local microMenuButtons = {
         "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton", 
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton"
+        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+        "CollectionsMicroButton", "MainMenuMicroButton", 
+        "HelpMicroButton", "StoreMicroButton", "EJMicroButton",
+        "PVPMicroButton", "GroupFinderMicroButton"
     }
-    for _, elementName in ipairs(micromenuElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            -- AzeriteMOP:Debug("Shown " .. elementName)
-        end
-    end
     
-    -- Show level bar
-    local levelBarElements = {
-        "MainMenuBar", "MainMenuBarArtFrame", "MainMenuBarArtFrameBackground",
-        "MainMenuBarArtFrameLeftCap", "MainMenuBarArtFrameRightCap",
-        "MainMenuBarArtFrameBackground", "MainMenuBarArtFrameBorder"
-    }
-    for _, elementName in ipairs(levelBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            -- AzeriteMOP:Debug("Shown " .. elementName)
-        end
-    end
-    
-    -- Show minimap
-    local minimapElements = {
-        "MinimapCluster", "Minimap", "MinimapBackdrop", "MinimapBorder",
-        "MinimapBorderTop", "MinimapZoomIn", "MinimapZoomOut",
-        "MinimapNorthTag", "MinimapZoneTextButton", "GameTimeFrame"
-    }
-    for _, elementName in ipairs(minimapElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            -- AzeriteMOP:Debug("Shown " .. elementName)
-        end
-    end
-    
-    -- Show action bars
-    local actionBarElements = {
-        "ActionBarUpButton", "ActionBarDownButton", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-        "MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7"
-    }
-    for _, elementName in ipairs(actionBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            -- AzeriteMOP:Debug("Shown " .. elementName)
-        end
-    end
-    
-    -- Show individual action bar buttons
-    for i = 1, 12 do
-        local button = _G["ActionButton" .. i]
+    for _, buttonName in ipairs(microMenuButtons) do
+        local button = _G[buttonName]
         if button then
             button:Show()
-            -- AzeriteMOP:Debug("Shown ActionButton" .. i)
+            -- AzeriteMOP:Debug("Shown " .. buttonName)
+        end
+    end
+    
+    -- Show micro menu bar container
+    local microMenuBar = _G["MainMenuBar"]
+    if microMenuBar then
+        microMenuBar:Show()
+        -- AzeriteMOP:Debug("Shown MainMenuBar")
+    end
+    
+    -- Show action bars (ActionBar1, ActionBar2, etc.)
+    for i = 1, 6 do
+        local actionBar = _G["ActionBar" .. i]
+        if actionBar then
+            actionBar:Show()
+            -- AzeriteMOP:Debug("Shown ActionBar" .. i)
         end
         
-        local multiBarButton = _G["MultiBarBottomLeftButton" .. i]
-        if multiBarButton then
-            multiBarButton:Show()
-            -- AzeriteMOP:Debug("Shown MultiBarBottomLeftButton" .. i)
+        -- Also try MultiBar frames
+        local multiBar = _G["MultiBar" .. i]
+        if multiBar then
+            multiBar:Show()
+            -- AzeriteMOP:Debug("Shown MultiBar" .. i)
+        end
+    end
+    
+    -- Show specific MoP action bar elements
+    local mopActionBars = {
+        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
+        "ActionBar1", "ActionBar2", "ActionBar3", "ActionBar4"
+    }
+    
+    for _, barName in ipairs(mopActionBars) do
+        local bar = _G[barName]
+        if bar then
+            bar:Show()
+            -- AzeriteMOP:Debug("Shown " .. barName)
+        end
+    end
+    
+    -- Show pet action bar
+    local petActionBar = _G["PetActionBarFrame"]
+    if petActionBar then
+        petActionBar:Show()
+        -- AzeriteMOP:Debug("Shown PetActionBarFrame")
+    end
+    
+    -- Show stance bar
+    local stanceBar = _G["StanceBarFrame"]
+    if stanceBar then
+        stanceBar:Show()
+        -- AzeriteMOP:Debug("Shown StanceBarFrame")
+    end
+    
+    -- Show bonus action bar
+    local bonusActionBar = _G["BonusActionBarFrame"]
+    if bonusActionBar then
+        bonusActionBar:Show()
+        -- AzeriteMOP:Debug("Shown BonusActionBarFrame")
+    end
+    
+    -- Show objective tracker frame (try multiple possible names for MoP)
+    local objectiveTracker = _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
+    if objectiveTracker then
+        objectiveTracker:Show()
+        -- AzeriteMOP:Debug("Shown objective tracker frame")
+    end
+    
+    -- Also try showing individual quest watch elements
+    local watchFrame = _G["WatchFrame"]
+    if watchFrame then
+        watchFrame:Show()
+        -- AzeriteMOP:Debug("Shown WatchFrame")
+    end
+    
+    local questWatchFrame = _G["QuestWatchFrame"]
+    if questWatchFrame then
+        questWatchFrame:Show()
+        -- AzeriteMOP:Debug("Shown QuestWatchFrame")
+    end
+end
+
+-- Function to ensure chat frames stay hidden
+function ExplorerMode:EnsureChatFramesHidden()
+    -- AzeriteMOP:Debug("Ensuring chat frames stay hidden...")
+    
+    -- Hide main chat frame and related elements - be more specific
+    local chatElements = {
+        "ChatFrame1", "ChatFrame1Tab", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"
+    }
+    for _, elementName in ipairs(chatElements) do
+        local element = _G[elementName]
+        if element and element:IsShown() then
+            element:Hide()
+            -- AzeriteMOP:Debug("Re-hidden " .. elementName)
+        end
+    end
+    
+    -- Also hide any other visible chat frames
+    for i = 1, 10 do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame and chatFrame:IsShown() then
+            chatFrame:Hide()
+            -- AzeriteMOP:Debug("Re-hidden visible ChatFrame" .. i)
         end
         
-        local multiBarRightButton = _G["MultiBarBottomRightButton" .. i]
-        if multiBarRightButton then
-            multiBarRightButton:Show()
-            -- AzeriteMOP:Debug("Shown MultiBarBottomRightButton" .. i)
+        local chatTab = _G["ChatFrame" .. i .. "Tab"]
+        if chatTab and chatTab:IsShown() then
+            chatTab:Hide()
+            -- AzeriteMOP:Debug("Re-hidden visible ChatFrame" .. i .. "Tab")
+        end
+    end
+    
+    -- Also ensure micro menu and action bars stay hidden
+    self:EnsureMicroMenuAndActionBarsHidden()
+end
+
+-- Function to ensure micro menu and action bars stay hidden
+function ExplorerMode:EnsureMicroMenuAndActionBarsHidden()
+    -- AzeriteMOP:Debug("Ensuring micro menu and action bars stay hidden...")
+    
+    -- Hide micro menu buttons (Character, Spellbook, Talents, etc.)
+    local microMenuButtons = {
+        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+        "CollectionsMicroButton", "MainMenuMicroButton", 
+        "HelpMicroButton", "StoreMicroButton", "EJMicroButton",
+        "PVPMicroButton", "GroupFinderMicroButton"
+    }
+    
+    for _, buttonName in ipairs(microMenuButtons) do
+        local button = _G[buttonName]
+        if button and button:IsShown() then
+            button:Hide()
+            -- AzeriteMOP:Debug("Re-hidden " .. buttonName)
+        end
+    end
+    
+    -- Hide micro menu bar container
+    local microMenuBar = _G["MainMenuBar"]
+    if microMenuBar and microMenuBar:IsShown() then
+        microMenuBar:Hide()
+        -- AzeriteMOP:Debug("Re-hidden MainMenuBar")
+    end
+    
+    -- Hide action bars (ActionBar1, ActionBar2, etc.)
+    for i = 1, 6 do
+        local actionBar = _G["ActionBar" .. i]
+        if actionBar and actionBar:IsShown() then
+            actionBar:Hide()
+            -- AzeriteMOP:Debug("Re-hidden ActionBar" .. i)
         end
         
-        local multiBarRightButton2 = _G["MultiBarRightButton" .. i]
-        if multiBarRightButton2 then
-            multiBarRightButton2:Show()
-            -- AzeriteMOP:Debug("Shown MultiBarRightButton" .. i)
+        -- Also try MultiBar frames
+        local multiBar = _G["MultiBar" .. i]
+        if multiBar and multiBar:IsShown() then
+            multiBar:Hide()
+            -- AzeriteMOP:Debug("Re-hidden MultiBar" .. i)
         end
-        
-        local multiBarLeftButton = _G["MultiBarLeftButton" .. i]
-        if multiBarLeftButton then
-            multiBarLeftButton:Show()
-            -- AzeriteMOP:Debug("Shown MultiBarLeftButton" .. i)
+    end
+    
+    -- Hide specific MoP action bar elements
+    local mopActionBars = {
+        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft",
+        "ActionBar1", "ActionBar2", "ActionBar3", "ActionBar4"
+    }
+    
+    for _, barName in ipairs(mopActionBars) do
+        local bar = _G[barName]
+        if bar and bar:IsShown() then
+            bar:Hide()
+            -- AzeriteMOP:Debug("Re-hidden " .. barName)
         end
+    end
+    
+    -- Hide pet action bar
+    local petActionBar = _G["PetActionBarFrame"]
+    if petActionBar and petActionBar:IsShown() then
+        petActionBar:Hide()
+        -- AzeriteMOP:Debug("Re-hidden PetActionBarFrame")
+    end
+    
+    -- Hide stance bar
+    local stanceBar = _G["StanceBarFrame"]
+    if stanceBar and stanceBar:IsShown() then
+        stanceBar:Hide()
+        -- AzeriteMOP:Debug("Re-hidden StanceBarFrame")
+    end
+    
+    -- Hide bonus action bar
+    local bonusActionBar = _G["BonusActionBarFrame"]
+    if bonusActionBar and bonusActionBar:IsShown() then
+        bonusActionBar:Hide()
+        -- AzeriteMOP:Debug("Re-hidden BonusActionBarFrame")
+    end
+    
+    -- Hide objective tracker frame (try multiple possible names for MoP)
+    local objectiveTracker = _G["ObjectiveTrackerFrame"] or _G["WatchFrame"] or _G["QuestWatchFrame"]
+    if objectiveTracker and objectiveTracker:IsShown() then
+        objectiveTracker:Hide()
+        -- AzeriteMOP:Debug("Re-hidden objective tracker frame")
+    end
+    
+    -- Also try hiding individual quest watch elements
+    local watchFrame = _G["WatchFrame"]
+    if watchFrame and watchFrame:IsShown() then
+        watchFrame:Hide()
+        -- AzeriteMOP:Debug("Re-hidden WatchFrame")
+    end
+    
+    local questWatchFrame = _G["QuestWatchFrame"]
+    if questWatchFrame and questWatchFrame:IsShown() then
+        questWatchFrame:Hide()
+        -- AzeriteMOP:Debug("Re-hidden QuestWatchFrame")
     end
 end
 
@@ -615,459 +826,6 @@ function ExplorerMode:CheckExplorerMode()
     end
 end
 
--- Function to remove top bar completely
-function ExplorerMode:RemoveTopBar()
-    -- Remove top bar elements completely
-    local topBarElements = {
-        "TopBar", "TopBarFrame", "TopBarContainer", "TopBarBackground",
-        "TopBarLeft", "TopBarRight", "TopBarCenter", "TopBarArt",
-        "TopBarBorder", "TopBarBorderLeft", "TopBarBorderRight"
-    }
-    for _, elementName in ipairs(topBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetParent(nil)
-            element:Hide()
-            AzeriteMOP:Debug("Removed top bar element: " .. elementName)
-        end
-    end
-    
-    -- Also try to remove any top bar by name variations
-    for i = 1, 10 do
-        local topBar = _G["TopBar" .. i]
-        if topBar then
-            topBar:SetParent(nil)
-            topBar:Hide()
-            AzeriteMOP:Debug("Removed top bar by index: " .. i)
-        end
-    end
-    
-    -- Check for any other potential top bar elements
-    local additionalTopBarElements = {
-        "TopBarContainer", "TopBarBackground", "TopBarArt", "TopBarBorder",
-        "TopBarLeft", "TopBarRight", "TopBarCenter", "TopBarFrame",
-        "TopBarContainerLeft", "TopBarContainerRight", "TopBarContainerCenter"
-    }
-    for _, elementName in ipairs(additionalTopBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetParent(nil)
-            element:Hide()
-            AzeriteMOP:Debug("Removed additional top bar element: " .. elementName)
-        end
-    end
-end
-
--- Function to fade out UI elements
-function ExplorerMode:FadeOutUI()
-    -- Fade out chat frames
-    local chatElements = {
-        "ChatFrame1", "ChatFrame1Tab", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"
-    }
-    for _, elementName in ipairs(chatElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out any other visible chat frames
-    for i = 1, 10 do
-        local chatFrame = _G["ChatFrame" .. i]
-        if chatFrame then
-            chatFrame:SetAlpha(0)
-            chatFrame:Hide()
-        end
-        
-        local chatTab = _G["ChatFrame" .. i .. "Tab"]
-        if chatTab then
-            chatTab:SetAlpha(0)
-            chatTab:Hide()
-        end
-    end
-    
-    -- Fade out micromenu
-    local micromenuElements = {
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton", 
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton",
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton",
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "MicroButtonAndBagsBar", "MicroButtonContainer", "MicroButtonContainerLeft",
-        "MicroButtonContainerRight", "MicroButtonContainerCenter",
-        -- MoP specific buttons
-        "PVPMicroButton", "LFGMicroButton", "GroupFinderMicroButton",
-        "DungeonFinderMicroButton", "RaidFinderMicroButton"
-    }
-    for _, elementName in ipairs(micromenuElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out level bar
-    local levelBarElements = {
-        "MainMenuBar", "MainMenuBarArtFrame", "MainMenuBarArtFrameBackground",
-        "MainMenuBarArtFrameLeftCap", "MainMenuBarArtFrameRightCap",
-        "MainMenuBarArtFrameBackground", "MainMenuBarArtFrameBorder"
-    }
-    for _, elementName in ipairs(levelBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out minimap
-    local minimapElements = {
-        "MinimapCluster", "Minimap", "MinimapBackdrop", "MinimapBorder",
-        "MinimapBorderTop", "MinimapZoomIn", "MinimapZoomOut",
-        "MinimapNorthTag", "MinimapZoneTextButton", "GameTimeFrame"
-    }
-    for _, elementName in ipairs(minimapElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out objectives/quest tracker
-    local objectiveElements = {
-        "ObjectiveTrackerFrame", "ObjectiveTrackerBlocksFrame", "ObjectiveTrackerHeader",
-        "QuestObjectiveTracker", "AchievementObjectiveTracker", "ScenarioObjectiveTracker",
-        "WorldQuestObjectiveTracker", "BonusObjectiveTracker", "QuestTimerFrame",
-        "QuestTimerFrameText", "QuestTimerFrameTimeText"
-    }
-    for _, elementName in ipairs(objectiveElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out action bars
-    local actionBarElements = {
-        "ActionBarUpButton", "ActionBarDownButton", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-        "MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7"
-    }
-    for _, elementName in ipairs(actionBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Fade out individual action bar buttons
-    for i = 1, 12 do
-        local button = _G["ActionButton" .. i]
-        if button then
-            button:SetAlpha(0)
-            button:Hide()
-        end
-        
-        local multiBarButton = _G["MultiBarBottomLeftButton" .. i]
-        if multiBarButton then
-            multiBarButton:SetAlpha(0)
-            multiBarButton:Hide()
-        end
-        
-        local multiBarRightButton = _G["MultiBarBottomRightButton" .. i]
-        if multiBarRightButton then
-            multiBarRightButton:SetAlpha(0)
-            multiBarRightButton:Hide()
-        end
-        
-        local multiBarRightButton2 = _G["MultiBarRightButton" .. i]
-        if multiBarRightButton2 then
-            multiBarRightButton2:SetAlpha(0)
-            multiBarRightButton2:Hide()
-        end
-        
-        local multiBarLeftButton = _G["MultiBarLeftButton" .. i]
-        if multiBarLeftButton then
-            multiBarLeftButton:SetAlpha(0)
-            multiBarLeftButton:Hide()
-        end
-    end
-end
-
--- Function to fade in UI elements
-function ExplorerMode:FadeInUI()
-    -- Fade in chat frames
-    local chatElements = {
-        "ChatFrame1", "ChatFrame1Tab", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"
-    }
-    for _, elementName in ipairs(chatElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Only show main chat frame, not extra chat frames
-    -- (Removed extra chat frame showing logic as requested)
-    
-    -- Fade in micromenu
-    local micromenuElements = {
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton", 
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton",
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton",
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "MicroButtonAndBagsBar", "MicroButtonContainer", "MicroButtonContainerLeft",
-        "MicroButtonContainerRight", "MicroButtonContainerCenter",
-        -- MoP specific buttons
-        "PVPMicroButton", "LFGMicroButton", "GroupFinderMicroButton",
-        "DungeonFinderMicroButton", "RaidFinderMicroButton"
-    }
-    for _, elementName in ipairs(micromenuElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Fade in level bar
-    local levelBarElements = {
-        "MainMenuBar", "MainMenuBarArtFrame", "MainMenuBarArtFrameBackground",
-        "MainMenuBarArtFrameLeftCap", "MainMenuBarArtFrameRightCap",
-        "MainMenuBarArtFrameBackground", "MainMenuBarArtFrameBorder"
-    }
-    for _, elementName in ipairs(levelBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Fade in minimap
-    local minimapElements = {
-        "MinimapCluster", "Minimap", "MinimapBackdrop", "MinimapBorder",
-        "MinimapBorderTop", "MinimapZoomIn", "MinimapZoomOut",
-        "MinimapNorthTag", "MinimapZoneTextButton", "GameTimeFrame"
-    }
-    for _, elementName in ipairs(minimapElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Fade in objectives/quest tracker
-    local objectiveElements = {
-        "ObjectiveTrackerFrame", "ObjectiveTrackerBlocksFrame", "ObjectiveTrackerHeader",
-        "QuestObjectiveTracker", "AchievementObjectiveTracker", "ScenarioObjectiveTracker",
-        "WorldQuestObjectiveTracker", "BonusObjectiveTracker", "QuestTimerFrame",
-        "QuestTimerFrameText", "QuestTimerFrameTimeText"
-    }
-    for _, elementName in ipairs(objectiveElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Fade in action bars
-    local actionBarElements = {
-        "ActionBarUpButton", "ActionBarDownButton", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-        "MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7"
-    }
-    for _, elementName in ipairs(actionBarElements) do
-        local element = _G[elementName]
-        if element then
-            element:Show()
-            element:SetAlpha(1)
-        end
-    end
-    
-    -- Fade in individual action bar buttons
-    for i = 1, 12 do
-        local button = _G["ActionButton" .. i]
-        if button then
-            button:Show()
-            button:SetAlpha(1)
-        end
-        
-        local multiBarButton = _G["MultiBarBottomLeftButton" .. i]
-        if multiBarButton then
-            multiBarButton:Show()
-            multiBarButton:SetAlpha(1)
-        end
-        
-        local multiBarRightButton = _G["MultiBarBottomRightButton" .. i]
-        if multiBarRightButton then
-            multiBarRightButton:Show()
-            multiBarRightButton:SetAlpha(1)
-        end
-        
-        local multiBarRightButton2 = _G["MultiBarRightButton" .. i]
-        if multiBarRightButton2 then
-            multiBarRightButton2:Show()
-            multiBarRightButton2:SetAlpha(1)
-        end
-        
-        local multiBarLeftButton = _G["MultiBarLeftButton" .. i]
-        if multiBarLeftButton then
-            multiBarLeftButton:Show()
-            multiBarLeftButton:SetAlpha(1)
-        end
-    end
-end
-
--- Function to continuously hide UI elements to prevent them from reappearing
-function ExplorerMode:ContinuouslyHideUI()
-    -- Hide chat frames continuously
-    local chatElements = {
-        "ChatFrame1", "ChatFrame1Tab", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"
-    }
-    for _, elementName in ipairs(chatElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:SetAlpha(0)
-            element:Hide()
-            -- AzeriteMOP:Debug("Continuously hidden " .. elementName)
-        end
-    end
-    
-    -- Hide any other visible chat frames
-    for i = 1, 10 do
-        local chatFrame = _G["ChatFrame" .. i]
-        if chatFrame and chatFrame:IsShown() then
-            chatFrame:Hide()
-        end
-        
-        local chatTab = _G["ChatFrame" .. i .. "Tab"]
-        if chatTab and chatTab:IsShown() then
-            chatTab:Hide()
-        end
-    end
-    
-    -- Hide micromenu continuously
-    local micromenuElements = {
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton", 
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton",
-        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton",
-        "LFDMicroButton", "CollectionsMicroButton", "EJMicroButton",
-        "StoreMicroButton", "MainMenuMicroButton", "HelpMicroButton",
-        "MicroButtonAndBagsBar", "MicroButtonContainer", "MicroButtonContainerLeft",
-        "MicroButtonContainerRight", "MicroButtonContainerCenter",
-        -- MoP specific buttons
-        "PVPMicroButton", "LFGMicroButton", "GroupFinderMicroButton",
-        "DungeonFinderMicroButton", "RaidFinderMicroButton"
-    }
-    for _, elementName in ipairs(micromenuElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:Hide()
-        end
-    end
-    
-    -- Hide level bar continuously
-    local levelBarElements = {
-        "MainMenuBar", "MainMenuBarArtFrame", "MainMenuBarArtFrameBackground",
-        "MainMenuBarArtFrameLeftCap", "MainMenuBarArtFrameRightCap",
-        "MainMenuBarArtFrameBackground", "MainMenuBarArtFrameBorder"
-    }
-    for _, elementName in ipairs(levelBarElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:Hide()
-        end
-    end
-    
-    -- Hide minimap continuously
-    local minimapElements = {
-        "MinimapCluster", "Minimap", "MinimapBackdrop", "MinimapBorder",
-        "MinimapBorderTop", "MinimapZoomIn", "MinimapZoomOut",
-        "MinimapNorthTag", "MinimapZoneTextButton", "GameTimeFrame"
-    }
-    for _, elementName in ipairs(minimapElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:Hide()
-        end
-    end
-    
-    -- Hide objectives/quest tracker continuously
-    local objectiveElements = {
-        "ObjectiveTrackerFrame", "ObjectiveTrackerBlocksFrame", "ObjectiveTrackerHeader",
-        "QuestObjectiveTracker", "AchievementObjectiveTracker", "ScenarioObjectiveTracker",
-        "WorldQuestObjectiveTracker", "BonusObjectiveTracker", "QuestTimerFrame",
-        "QuestTimerFrameText", "QuestTimerFrameTimeText"
-    }
-    for _, elementName in ipairs(objectiveElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:SetAlpha(0)
-            element:Hide()
-        end
-    end
-    
-    -- Hide action bars continuously
-    local actionBarElements = {
-        "ActionBarUpButton", "ActionBarDownButton", "MainMenuBar",
-        "MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight",
-        "MultiBarLeft", "MultiBar5", "MultiBar6", "MultiBar7"
-    }
-    for _, elementName in ipairs(actionBarElements) do
-        local element = _G[elementName]
-        if element and element:IsShown() then
-            element:Hide()
-        end
-    end
-    
-    -- Hide individual action bar buttons continuously
-    for i = 1, 12 do
-        local button = _G["ActionButton" .. i]
-        if button and button:IsShown() then
-            button:Hide()
-        end
-        
-        local multiBarButton = _G["MultiBarBottomLeftButton" .. i]
-        if multiBarButton and multiBarButton:IsShown() then
-            multiBarButton:Hide()
-        end
-        
-        local multiBarRightButton = _G["MultiBarBottomRightButton" .. i]
-        if multiBarRightButton and multiBarRightButton:IsShown() then
-            multiBarRightButton:Hide()
-        end
-        
-        local multiBarRightButton2 = _G["MultiBarRightButton" .. i]
-        if multiBarRightButton2 and multiBarRightButton2:IsShown() then
-            multiBarRightButton2:Hide()
-        end
-        
-        local multiBarLeftButton = _G["MultiBarLeftButton" .. i]
-        if multiBarLeftButton and multiBarLeftButton:IsShown() then
-            multiBarLeftButton:Hide()
-        end
-    end
-end
-
 -- Public API functions
 function ExplorerMode:SetEnabled(enabled)
     AzeriteMOP.db.explorerMode.enabled = enabled
@@ -1117,22 +875,37 @@ function ExplorerMode:ForceShowFrames()
     AzeriteMOP:Debug("Force show frames completed")
 end
 
--- Function to check for any extra frames being created
-function ExplorerMode:CheckForExtraFrames()
-    AzeriteMOP:Debug("Checking for extra frames...")
+-- Debug function to find frame names
+function ExplorerMode:FindFrameNames()
+    AzeriteMOP:Debug("Searching for frame names...")
     
-    -- Check for any frames with AzeriteMOP in the name
-    for name, frame in pairs(_G) do
-        if type(frame) == "table" and frame.GetName and frame:GetName() and 
-           string.find(frame:GetName(), "AzeriteMOP") and 
-           frame:GetName() ~= "AzeriteMOPPlayerFrame" and 
-           frame:GetName() ~= "AzeriteMOPTargetFrame" then
-            AzeriteMOP:Debug("Found extra frame: " .. frame:GetName())
+    -- Check for objective tracker frames
+    AzeriteMOP:Debug("Objective Tracker Frames:")
+    local trackerFrames = {"ObjectiveTrackerFrame", "WatchFrame", "QuestWatchFrame", "QuestLogFrame"}
+    for _, frameName in ipairs(trackerFrames) do
+        local frame = _G[frameName]
+        if frame then
+            AzeriteMOP:Debug("  " .. frameName .. " exists: " .. tostring(frame:IsShown()))
+        else
+            AzeriteMOP:Debug("  " .. frameName .. " does not exist")
         end
     end
     
-    -- Check for any unnamed frames that might be ours
-    AzeriteMOP:Debug("Frame check completed")
+    -- Check for micro menu buttons
+    AzeriteMOP:Debug("Micro Menu Buttons:")
+    local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+        "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+        "CollectionsMicroButton", "MainMenuMicroButton", "HelpMicroButton", 
+        "StoreMicroButton", "EJMicroButton", "PVPMicroButton", "GroupFinderMicroButton",
+        "LFDMicroButton", "DungeonFinderMicroButton"}
+    for _, buttonName in ipairs(microButtons) do
+        local button = _G[buttonName]
+        if button then
+            AzeriteMOP:Debug("  " .. buttonName .. " exists: " .. tostring(button:IsShown()))
+        else
+            AzeriteMOP:Debug("  " .. buttonName .. " does not exist")
+        end
+    end
 end
 
 -- Debug function
