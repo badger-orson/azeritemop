@@ -39,6 +39,151 @@ if AzeriteMOP then
     AzeriteMOP:Debug("ExplorerMode module: Database initialized")
 end
 
+-- Function to scan for all visible frames (for debugging)
+function ExplorerMode:ScanVisibleFrames()
+    AzeriteMOP:Debug("Scanning for visible frames...")
+    local visibleFrames = {}
+    
+    -- Common frame names to check
+    local frameNames = {
+        "ChatFrame1", "ChatFrame2", "ChatFrame3", "ChatFrame4", "ChatFrame5", "ChatFrame6", "ChatFrame7",
+        "ChatFrame1EditBox", "ChatFrame1ButtonFrame", "ChatFrame1Tab", "ChatFrame2Tab", "ChatFrame3Tab",
+        "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame", "QuestWatchFrame",
+        "MinimapCluster", "Minimap", "MinimapBackdrop",
+        "ActionButton1", "ActionButton2", "ActionButton3", "ActionButton4", "ActionButton5",
+        "ActionButton6", "ActionButton7", "ActionButton8", "ActionButton9", "ActionButton10",
+        "MultiBarBottomLeftButton1", "MultiBarBottomRightButton1", "MultiBarRightButton1", "MultiBarLeftButton1"
+    }
+    
+    for _, frameName in ipairs(frameNames) do
+        local frame = _G[frameName]
+        if frame and frame:IsShown() then
+            table.insert(visibleFrames, frameName)
+        end
+    end
+    
+    AzeriteMOP:Debug("Visible frames found: " .. table.concat(visibleFrames, ", "))
+    return visibleFrames
+end
+
+-- Function to hide all chat-related frames
+function ExplorerMode:HideAllChatFrames()
+    AzeriteMOP:Debug("Attempting to hide all chat-related frames...")
+    
+    -- Hide main chat frames
+    for i = 1, 10 do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame then
+            chatFrame:Hide()
+            AzeriteMOP:Debug("Hidden ChatFrame" .. i)
+        end
+        
+        local chatTab = _G["ChatFrame" .. i .. "Tab"]
+        if chatTab then
+            chatTab:Hide()
+            AzeriteMOP:Debug("Hidden ChatFrame" .. i .. "Tab")
+        end
+    end
+    
+    -- Hide chat edit boxes
+    for i = 1, 10 do
+        local editBox = _G["ChatFrame" .. i .. "EditBox"]
+        if editBox then
+            editBox:Hide()
+            AzeriteMOP:Debug("Hidden ChatFrame" .. i .. "EditBox")
+        end
+    end
+    
+    -- Hide specific chat elements
+    local chatElements = {
+        "ChatFrame1EditBox", "ChatFrame1ButtonFrame", "ChatFrame1Tab",
+        "ChatFrameMenuButton", "ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton"
+    }
+    
+    for _, elementName in ipairs(chatElements) do
+        local element = _G[elementName]
+        if element then
+            element:Hide()
+            AzeriteMOP:Debug("Hidden " .. elementName)
+        end
+    end
+    
+    -- Try to hide the chat container
+    if ChatFrame1 then
+        local parent = ChatFrame1:GetParent()
+        if parent then
+            parent:Hide()
+            AzeriteMOP:Debug("Hidden ChatFrame1 parent")
+        end
+        
+        -- Try to hide grandparents too
+        local grandparent = parent and parent:GetParent()
+        if grandparent then
+            grandparent:Hide()
+            AzeriteMOP:Debug("Hidden ChatFrame1 grandparent")
+        end
+    end
+end
+
+-- Function to show all chat-related frames
+function ExplorerMode:ShowAllChatFrames()
+    AzeriteMOP:Debug("Attempting to show all chat-related frames...")
+    
+    -- Show main chat frames
+    for i = 1, 10 do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame then
+            chatFrame:Show()
+            AzeriteMOP:Debug("Shown ChatFrame" .. i)
+        end
+        
+        local chatTab = _G["ChatFrame" .. i .. "Tab"]
+        if chatTab then
+            chatTab:Show()
+            AzeriteMOP:Debug("Shown ChatFrame" .. i .. "Tab")
+        end
+    end
+    
+    -- Show chat edit boxes
+    for i = 1, 10 do
+        local editBox = _G["ChatFrame" .. i .. "EditBox"]
+        if editBox then
+            editBox:Show()
+            AzeriteMOP:Debug("Shown ChatFrame" .. i .. "EditBox")
+        end
+    end
+    
+    -- Show specific chat elements
+    local chatElements = {
+        "ChatFrame1EditBox", "ChatFrame1ButtonFrame", "ChatFrame1Tab",
+        "ChatFrameMenuButton", "ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton"
+    }
+    
+    for _, elementName in ipairs(chatElements) do
+        local element = _G[elementName]
+        if element then
+            element:Show()
+            AzeriteMOP:Debug("Shown " .. elementName)
+        end
+    end
+    
+    -- Show the chat container
+    if ChatFrame1 then
+        local parent = ChatFrame1:GetParent()
+        if parent then
+            parent:Show()
+            AzeriteMOP:Debug("Shown ChatFrame1 parent")
+        end
+        
+        -- Show grandparents too
+        local grandparent = parent and parent:GetParent()
+        if grandparent then
+            grandparent:Show()
+            AzeriteMOP:Debug("Shown ChatFrame1 grandparent")
+        end
+    end
+end
+
 function ExplorerMode:Initialize()
     AzeriteMOP:Debug("Initializing Explorer Mode...")
     
@@ -252,7 +397,7 @@ function ExplorerMode:StoreOriginalStates()
     self.hiddenFrames = {}
     
     -- Quest Log - try multiple possible frame names
-    local questFrames = {"QuestLogFrame", "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+    local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame", "QuestWatchFrame"}
     for _, frameName in ipairs(questFrames) do
         local frame = _G[frameName]
         if frame then
@@ -265,7 +410,7 @@ function ExplorerMode:StoreOriginalStates()
     end
     
     -- Chat Frame - try multiple possible frame names
-    local chatFrames = {"ChatFrame1", "ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
+    local chatFrames = {"ChatFrame1", "ChatFrame", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"}
     for _, frameName in ipairs(chatFrames) do
         local frame = _G[frameName]
         if frame then
@@ -310,10 +455,10 @@ function ExplorerMode:EnableExplorerMode()
     AzeriteMOP:Debug("Enabling Explorer Mode")
     self.isActive = true
     
-    -- Hide quest log and objectives
+    -- Hide quest log and objectives using multiple methods
     if AzeriteMOP.db.explorerMode.hideQuestLog then
-        -- Try multiple quest/objective frames
-        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+        -- Method 1: Try to hide specific frames
+        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame", "QuestWatchFrame"}
         for _, frameName in ipairs(questFrames) do
             local frame = _G[frameName]
             if frame then
@@ -321,28 +466,29 @@ function ExplorerMode:EnableExplorerMode()
                 AzeriteMOP:Debug("ExplorerMode: Hidden " .. frameName)
             end
         end
-    end
-    
-    -- Hide chat frame
-    if AzeriteMOP.db.explorerMode.hideChatFrame then
-        -- Try multiple chat frames
-        local chatFrames = {"ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
-        for _, frameName in ipairs(chatFrames) do
-            local frame = _G[frameName]
-            if frame then
-                frame:Hide()
-                AzeriteMOP:Debug("ExplorerMode: Hidden " .. frameName)
-            end
+        
+        -- Method 2: Try to hide quest log using ShowUIPanel/ShowUIPanel
+        if QuestLogFrame then
+            HideUIPanel(QuestLogFrame)
+            AzeriteMOP:Debug("ExplorerMode: Used HideUIPanel on QuestLogFrame")
         end
         
-        -- Also try to hide the chat tabs
-        for i = 1, 10 do
-            local chatTab = _G["ChatFrame" .. i .. "Tab"]
-            if chatTab then
-                chatTab:Hide()
-                AzeriteMOP:Debug("ExplorerMode: Hidden ChatFrame" .. i .. "Tab")
-            end
+        -- Method 3: Try to hide objectives using ObjectiveTracker
+        if ObjectiveTrackerFrame then
+            ObjectiveTrackerFrame:Hide()
+            AzeriteMOP:Debug("ExplorerMode: Hidden ObjectiveTrackerFrame")
         end
+        
+        -- Method 4: Try to hide watch frame
+        if WatchFrame then
+            WatchFrame:Hide()
+            AzeriteMOP:Debug("ExplorerMode: Hidden WatchFrame")
+        end
+    end
+    
+    -- Hide chat frame using comprehensive method
+    if AzeriteMOP.db.explorerMode.hideChatFrame then
+        self:HideAllChatFrames()
     end
     
     -- Hide minimap (optional)
@@ -373,7 +519,7 @@ function ExplorerMode:DisableExplorerMode()
     
     -- Show quest log and objectives
     if AzeriteMOP.db.explorerMode.hideQuestLog then
-        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame", "QuestWatchFrame"}
         for _, frameName in ipairs(questFrames) do
             local frame = _G[frameName]
             if frame then
@@ -381,27 +527,29 @@ function ExplorerMode:DisableExplorerMode()
                 AzeriteMOP:Debug("ExplorerMode: Shown " .. frameName)
             end
         end
-    end
-    
-    -- Show chat frame
-    if AzeriteMOP.db.explorerMode.hideChatFrame then
-        local chatFrames = {"ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
-        for _, frameName in ipairs(chatFrames) do
-            local frame = _G[frameName]
-            if frame then
-                frame:Show()
-                AzeriteMOP:Debug("ExplorerMode: Shown " .. frameName)
-            end
+        
+        -- Show quest log using ShowUIPanel
+        if QuestLogFrame then
+            ShowUIPanel(QuestLogFrame)
+            AzeriteMOP:Debug("ExplorerMode: Used ShowUIPanel on QuestLogFrame")
         end
         
-        -- Also show the chat tabs
-        for i = 1, 10 do
-            local chatTab = _G["ChatFrame" .. i .. "Tab"]
-            if chatTab then
-                chatTab:Show()
-                AzeriteMOP:Debug("ExplorerMode: Shown ChatFrame" .. i .. "Tab")
-            end
+        -- Show objectives
+        if ObjectiveTrackerFrame then
+            ObjectiveTrackerFrame:Show()
+            AzeriteMOP:Debug("ExplorerMode: Shown ObjectiveTrackerFrame")
         end
+        
+        -- Show watch frame
+        if WatchFrame then
+            WatchFrame:Show()
+            AzeriteMOP:Debug("ExplorerMode: Shown WatchFrame")
+        end
+    end
+    
+    -- Show chat frame using comprehensive method
+    if AzeriteMOP.db.explorerMode.hideChatFrame then
+        self:ShowAllChatFrames()
     end
     
     -- Show minimap (optional)
@@ -489,7 +637,7 @@ function ExplorerMode:DebugInfo()
     
     -- Test frame visibility
     AzeriteMOP:Debug("  Frame Visibility Test:")
-    local testFrames = {"ChatFrame1", "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+    local testFrames = {"ChatFrame1", "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame", "ChatFrame1EditBox", "ChatFrame1ButtonFrame"}
     for _, frameName in ipairs(testFrames) do
         local frame = _G[frameName]
         if frame then
@@ -498,4 +646,18 @@ function ExplorerMode:DebugInfo()
             AzeriteMOP:Debug("    " .. frameName .. ": Not found")
         end
     end
+    
+    -- Test chat tabs
+    AzeriteMOP:Debug("  Chat Tab Visibility Test:")
+    for i = 1, 5 do
+        local chatTab = _G["ChatFrame" .. i .. "Tab"]
+        if chatTab then
+            AzeriteMOP:Debug("    ChatFrame" .. i .. "Tab: " .. tostring(chatTab:IsShown()))
+        else
+            AzeriteMOP:Debug("    ChatFrame" .. i .. "Tab: Not found")
+        end
+    end
+    
+    -- Scan for all visible frames
+    self:ScanVisibleFrames()
 end 
