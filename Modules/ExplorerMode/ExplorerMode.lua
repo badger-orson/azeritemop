@@ -97,7 +97,8 @@ function ExplorerMode:HideAllChatFrames()
     -- Hide specific chat elements
     local chatElements = {
         "ChatFrame1EditBox", "ChatFrame1ButtonFrame", "ChatFrame1Tab",
-        "ChatFrameMenuButton", "ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton"
+        "ChatFrameMenuButton", "ChatFrameToggleVoiceDeafenButton", "ChatFrameToggleVoiceMuteButton",
+        "ChatFrame1", "ChatFrame2", "ChatFrame3", "ChatFrame4", "ChatFrame5", "ChatFrame6", "ChatFrame7"
     }
     
     for _, elementName in ipairs(chatElements) do
@@ -108,19 +109,46 @@ function ExplorerMode:HideAllChatFrames()
         end
     end
     
-    -- Try to hide the chat container
+    -- Try to hide the chat container and all its parents
     if ChatFrame1 then
         local parent = ChatFrame1:GetParent()
         if parent then
             parent:Hide()
             AzeriteMOP:Debug("Hidden ChatFrame1 parent")
+            
+            -- Try to hide grandparents too
+            local grandparent = parent:GetParent()
+            if grandparent then
+                grandparent:Hide()
+                AzeriteMOP:Debug("Hidden ChatFrame1 grandparent")
+            end
         end
-        
-        -- Try to hide grandparents too
-        local grandparent = parent and parent:GetParent()
-        if grandparent then
-            grandparent:Hide()
-            AzeriteMOP:Debug("Hidden ChatFrame1 grandparent")
+    end
+    
+    -- Try to hide the entire chat system using UIParent
+    local chatSystem = _G["ChatFrame1"] or _G["ChatFrame"]
+    if chatSystem then
+        -- Try to hide the entire chat system
+        chatSystem:SetParent(nil)
+        AzeriteMOP:Debug("Set ChatFrame1 parent to nil")
+    end
+    
+    -- Try to hide any chat-related containers
+    local chatContainers = {"ChatFrameContainer", "ChatFrame1Container", "ChatFrame2Container"}
+    for _, containerName in ipairs(chatContainers) do
+        local container = _G[containerName]
+        if container then
+            container:Hide()
+            AzeriteMOP:Debug("Hidden " .. containerName)
+        end
+    end
+    
+    -- Force hide any visible chat frames by setting alpha to 0
+    for i = 1, 10 do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame then
+            chatFrame:SetAlpha(0)
+            AzeriteMOP:Debug("Set ChatFrame" .. i .. " alpha to 0")
         end
     end
 end
@@ -295,101 +323,82 @@ function ExplorerMode:OnUpdate(elapsed)
         return
     end
     
-    -- Try to get current player position
-    local mapID = C_Map.GetBestMapForUnit("player")
-    local position = nil
-    
-    if mapID then
-        position = C_Map.GetPlayerMapPosition(mapID, "player")
+    -- Use a simpler, more reliable movement detection for MoP Classic
+    if not self.lastUpdateTime then
+        self.lastUpdateTime = GetTime()
+        self.lastPlayerX = 0
+        self.lastPlayerY = 0
     end
     
-    -- If we can't get position from map, use a simpler movement detection
-    if not position then
-        -- Use a time-based movement detection as fallback
-        if not self.lastUpdateTime then
-            self.lastUpdateTime = GetTime()
+    local currentTime = GetTime()
+    local timeDiff = currentTime - self.lastUpdateTime
+    
+    -- Check movement every 0.5 seconds
+    if timeDiff >= 0.5 then
+        -- Get current player position using GetPlayerMapPosition
+        local mapID = C_Map.GetBestMapForUnit("player")
+        local position = nil
+        
+        if mapID then
+            position = C_Map.GetPlayerMapPosition(mapID, "player")
         end
         
-        local currentTime = GetTime()
-        local timeDiff = currentTime - self.lastUpdateTime
-        
-        -- If more than 1 second has passed, assume player might be moving
-        if timeDiff > 1.0 then
+        if position then
+            -- Calculate movement distance
+            local dx = position.x - self.lastPlayerX
+            local dy = position.y - self.lastPlayerY
+            local distance = math.sqrt(dx * dx + dy * dy)
+            
+            -- Check if player is moving
+            local threshold = AzeriteMOP.db.explorerMode.movementThreshold
+            local isMoving = distance > threshold
+            
+            AzeriteMOP:Debug("ExplorerMode: Position " .. position.x .. ", " .. position.y .. " | Distance: " .. distance .. " | Moving: " .. tostring(isMoving))
+            
+            if isMoving then
+                -- Player is moving
+                if not self.isMoving then
+                    self.isMoving = true
+                    self.stationaryTimer = 0
+                    AzeriteMOP:Debug("ExplorerMode: Player started moving, enabling explorer mode")
+                    self:EnableExplorerMode()
+                end
+            else
+                -- Player is stationary
+                if self.isMoving then
+                    self.isMoving = false
+                    AzeriteMOP:Debug("ExplorerMode: Player stopped moving")
+                end
+                
+                -- Increment stationary timer
+                self.stationaryTimer = self.stationaryTimer + timeDiff
+                
+                -- Check if we should disable explorer mode
+                local delay = AzeriteMOP.db.explorerMode.stationaryDelay
+                if self.stationaryTimer >= delay and self.isActive then
+                    AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
+                    self:DisableExplorerMode()
+                end
+            end
+            
+            -- Update last position
+            self.lastPlayerX = position.x
+            self.lastPlayerY = position.y
+        else
+            -- Fallback: Use a time-based movement detection
+            AzeriteMOP:Debug("ExplorerMode: Could not get position, using fallback detection")
+            
+            -- Assume player is moving if we can't get position (they're probably not standing still)
             if not self.isMoving then
                 self.isMoving = true
                 self.stationaryTimer = 0
-                AzeriteMOP:Debug("ExplorerMode: Player started moving (fallback detection)")
+                AzeriteMOP:Debug("ExplorerMode: Player started moving (fallback), enabling explorer mode")
                 self:EnableExplorerMode()
-            end
-        else
-            if self.isMoving then
-                self.isMoving = false
-                AzeriteMOP:Debug("ExplorerMode: Player stopped moving (fallback detection)")
-            end
-            
-            -- Increment stationary timer
-            self.stationaryTimer = self.stationaryTimer + elapsed
-            
-            -- Check if we should disable explorer mode
-            local delay = AzeriteMOP.db.explorerMode.stationaryDelay
-            if self.stationaryTimer >= delay and self.isActive then
-                AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
-                self:DisableExplorerMode()
             end
         end
         
         self.lastUpdateTime = currentTime
-        return
     end
-    
-    -- Calculate movement distance
-    local dx = position.x - self.lastPosition.x
-    local dy = position.y - self.lastPosition.y
-    local distance = math.sqrt(dx * dx + dy * dy)
-    
-    -- Check if player is moving
-    local threshold = AzeriteMOP.db.explorerMode.movementThreshold
-    local isMoving = distance > threshold
-    
-    -- Debug movement detection (uncomment for testing)
-    if self.debugCounter == nil then
-        self.debugCounter = 0
-    end
-    self.debugCounter = self.debugCounter + elapsed
-    if self.debugCounter >= 5.0 then -- Debug every 5 seconds
-        AzeriteMOP:Debug("ExplorerMode: Position " .. position.x .. ", " .. position.y .. " | Distance: " .. distance .. " | Moving: " .. tostring(isMoving))
-        self.debugCounter = 0
-    end
-    
-    if isMoving then
-        -- Player is moving
-        if not self.isMoving then
-            self.isMoving = true
-            self.stationaryTimer = 0
-            AzeriteMOP:Debug("ExplorerMode: Player started moving, enabling explorer mode")
-            self:EnableExplorerMode()
-        end
-    else
-        -- Player is stationary
-        if self.isMoving then
-            self.isMoving = false
-            AzeriteMOP:Debug("ExplorerMode: Player stopped moving")
-        end
-        
-        -- Increment stationary timer
-        self.stationaryTimer = self.stationaryTimer + elapsed
-        
-        -- Check if we should disable explorer mode
-        local delay = AzeriteMOP.db.explorerMode.stationaryDelay
-        if self.stationaryTimer >= delay and self.isActive then
-            AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
-            self:DisableExplorerMode()
-        end
-    end
-    
-    -- Update last position
-    self.lastPosition.x = position.x
-    self.lastPosition.y = position.y
 end
 
 function ExplorerMode:StoreOriginalStates()
@@ -483,6 +492,41 @@ function ExplorerMode:EnableExplorerMode()
         if WatchFrame then
             WatchFrame:Hide()
             AzeriteMOP:Debug("ExplorerMode: Hidden WatchFrame")
+        end
+        
+        -- Method 5: Hide quest objective markers (white triangles)
+        local questMarkers = {"QuestPOIFrame", "QuestPOIButton", "QuestPOIButton1", "QuestPOIButton2"}
+        for _, markerName in ipairs(questMarkers) do
+            local marker = _G[markerName]
+            if marker then
+                marker:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden " .. markerName)
+            end
+        end
+        
+        -- Method 6: Try to hide quest-related UI elements
+        local questUI = {"QuestLogFrame", "QuestLogFrame", "QuestLogFrame", "QuestLogFrame"}
+        for _, uiName in ipairs(questUI) do
+            local ui = _G[uiName]
+            if ui then
+                ui:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden " .. uiName)
+            end
+        end
+        
+        -- Method 7: Hide any POI (Points of Interest) frames
+        for i = 1, 50 do
+            local poiFrame = _G["QuestPOIButton" .. i]
+            if poiFrame then
+                poiFrame:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden QuestPOIButton" .. i)
+            end
+        end
+        
+        -- Method 8: Try to hide the entire quest system
+        if QuestLogFrame then
+            QuestLogFrame:SetParent(nil)
+            AzeriteMOP:Debug("ExplorerMode: Set QuestLogFrame parent to nil")
         end
     end
     
@@ -610,6 +654,24 @@ end
 
 function ExplorerMode:SetMovementThreshold(threshold)
     AzeriteMOP.db.explorerMode.movementThreshold = threshold
+end
+
+-- Force enable explorer mode for testing
+function ExplorerMode:ForceEnable()
+    AzeriteMOP:Debug("Force enabling Explorer Mode")
+    self.isActive = true
+    self.isMoving = true
+    self.stationaryTimer = 0
+    self:EnableExplorerMode()
+end
+
+-- Force disable explorer mode for testing
+function ExplorerMode:ForceDisable()
+    AzeriteMOP:Debug("Force disabling Explorer Mode")
+    self.isActive = false
+    self.isMoving = false
+    self.stationaryTimer = 0
+    self:DisableExplorerMode()
 end
 
 -- Debug function
