@@ -315,10 +315,10 @@ function AzeriteMOP:HandleSlashCommand(msg)
         local subCommand = string.lower(args[2] or "")
         if self.ExplorerMode then
             if subCommand == "on" then
-                self.ExplorerMode:EnableExplorerMode()
+                self.ExplorerMode:ForceEnable()
                 print("|cFF4488FF[AzeriteMOP]|r Force enabled explorer mode")
             elseif subCommand == "off" then
-                self.ExplorerMode:DisableExplorerMode()
+                self.ExplorerMode:ForceDisable()
                 print("|cFF4488FF[AzeriteMOP]|r Force disabled explorer mode")
             else
                 print("|cFF4488FF[AzeriteMOP]|r Usage: /az forceexplorer [on|off]")
@@ -326,7 +326,95 @@ function AzeriteMOP:HandleSlashCommand(msg)
         else
             print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
         end
-
+    elseif command == "scanframes" then
+        if self.ExplorerMode then
+            print("|cFF4488FF[AzeriteMOP]|r Scanning for visible frames...")
+            self.ExplorerMode:DebugInfo()
+            self.ExplorerMode:CheckForExtraFrames()
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        end
+    elseif command == "restore" then
+        if self.ExplorerMode then
+            print("|cFF4488FF[AzeriteMOP]|r Force restoring all UI elements...")
+            self.ExplorerMode:ForceDisable()
+            -- Force show all chat frames
+            for i = 1, 10 do
+                local chatFrame = _G["ChatFrame" .. i]
+                if chatFrame then
+                    chatFrame:Show()
+                    chatFrame:SetAlpha(1)
+                end
+                local chatTab = _G["ChatFrame" .. i .. "Tab"]
+                if chatTab then
+                    chatTab:Show()
+                    chatTab:SetAlpha(1)
+                end
+            end
+            -- Force show quest frames
+            local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+            for _, frameName in ipairs(questFrames) do
+                local frame = _G[frameName]
+                if frame then
+                    frame:Show()
+                    frame:SetAlpha(1)
+                end
+            end
+            print("|cFF4488FF[AzeriteMOP]|r All UI elements restored!")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        end
+    elseif command == "showframes" then
+        print("|cFF4488FF[AzeriteMOP]|r Force showing PlayerFrame and TargetFrame...")
+        -- Force show PlayerFrame
+        if self.PlayerFrame and self.PlayerFrame.frame then
+            self.PlayerFrame.frame:Show()
+            print("|cFF4488FF[AzeriteMOP]|r PlayerFrame shown")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r PlayerFrame not found")
+        end
+        -- Force show TargetFrame only if target exists
+        if self.TargetFrame and self.TargetFrame.frame then
+            if UnitExists("target") then
+                self.TargetFrame.frame:Show()
+                print("|cFF4488FF[AzeriteMOP]|r TargetFrame shown (target exists)")
+            else
+                self.TargetFrame.frame:Hide()
+                print("|cFF4488FF[AzeriteMOP]|r TargetFrame hidden (no target selected)")
+            end
+        else
+            print("|cFF4488FF[AzeriteMOP]|r TargetFrame not found")
+        end
+    elseif command == "checkframes" then
+        print("|cFF4488FF[AzeriteMOP]|r Checking frame status...")
+        -- Check PlayerFrame status
+        if self.PlayerFrame and self.PlayerFrame.frame then
+            local isShown = self.PlayerFrame.frame:IsShown()
+            print("|cFF4488FF[AzeriteMOP]|r PlayerFrame exists and is shown: " .. tostring(isShown))
+        else
+            print("|cFF4488FF[AzeriteMOP]|r PlayerFrame not found")
+        end
+        -- Check TargetFrame status
+        if self.TargetFrame and self.TargetFrame.frame then
+            local isShown = self.TargetFrame.frame:IsShown()
+            local hasTarget = UnitExists("target")
+            print("|cFF4488FF[AzeriteMOP]|r TargetFrame exists and is shown: " .. tostring(isShown) .. " (has target: " .. tostring(hasTarget) .. ")")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r TargetFrame not found")
+        end
+        -- Check by name
+        local playerFrame = _G["AzeriteMOPPlayerFrame"]
+        if playerFrame then
+            print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPPlayerFrame exists and is shown: " .. tostring(playerFrame:IsShown()))
+        else
+            print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPPlayerFrame not found")
+        end
+        local targetFrame = _G["AzeriteMOPTargetFrame"]
+        if targetFrame then
+            print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPTargetFrame exists and is shown: " .. tostring(targetFrame:IsShown()))
+        else
+            print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPTargetFrame not found")
+        end
     else
         self:ShowHelp()
     end
@@ -536,6 +624,9 @@ function AzeriteMOP:ShowHelp()
     print("  /az testexplorer - Test explorer mode manually")
     print("  /az forceexplorer [on|off] - Force enable/disable explorer mode")
     print("  /az scanframes - Scan for visible frames (debugging)")
+    print("  /az restore - Force restore all UI elements")
+    print("  /az showframes - Force show PlayerFrame and TargetFrame")
+    print("  /az checkframes - Check frame status")
     print("  /az help - Show this help")
     print("")
     print("Examples:")
