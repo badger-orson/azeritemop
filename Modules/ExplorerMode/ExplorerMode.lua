@@ -36,20 +36,20 @@ if AzeriteMOP then
             movementThreshold = 0.1
         }
     end
-            -- AzeriteMOP:Debug("ExplorerMode module: Database initialized")
+    AzeriteMOP:Debug("ExplorerMode module: Database initialized")
 end
 
 function ExplorerMode:Initialize()
-    -- AzeriteMOP:Debug("Initializing Explorer Mode...")
+    AzeriteMOP:Debug("Initializing Explorer Mode...")
     
     -- Ensure database is available
     if not AzeriteMOP.db then
-        -- AzeriteMOP:Debug("Initialize: Creating AzeriteMOP.db")
+        AzeriteMOP:Debug("Initialize: Creating AzeriteMOP.db")
         AzeriteMOP.db = {}
     end
     
     if not AzeriteMOP.db.explorerMode then
-        -- AzeriteMOP:Debug("Initialize: Creating explorerMode in database")
+        AzeriteMOP:Debug("Initialize: Creating explorerMode in database")
         AzeriteMOP.db.explorerMode = {
             enabled = true,
             hideQuestLog = true,
@@ -73,7 +73,7 @@ function ExplorerMode:Initialize()
     -- Store original UI states
     self:StoreOriginalStates()
     
-    -- AzeriteMOP:Debug("Explorer Mode initialized!")
+    AzeriteMOP:Debug("Explorer Mode initialized!")
 end
 
 function ExplorerMode:InitializePositionTracking()
@@ -84,19 +84,19 @@ function ExplorerMode:InitializePositionTracking()
         if position then
             self.lastPosition.x = position.x
             self.lastPosition.y = position.y
-            -- AzeriteMOP:Debug("ExplorerMode: Initial position set to " .. position.x .. ", " .. position.y)
+            AzeriteMOP:Debug("ExplorerMode: Initial position set to " .. position.x .. ", " .. position.y)
         else
-            -- AzeriteMOP:Debug("ExplorerMode: Could not get initial position")
+            AzeriteMOP:Debug("ExplorerMode: Could not get initial position")
         end
     else
-        -- AzeriteMOP:Debug("ExplorerMode: Could not get map ID")
+        AzeriteMOP:Debug("ExplorerMode: Could not get map ID")
     end
     
     -- Fallback: Initialize with default values if position tracking fails
     if not self.lastPosition.x or not self.lastPosition.y then
         self.lastPosition.x = 0
         self.lastPosition.y = 0
-        -- AzeriteMOP:Debug("ExplorerMode: Using fallback position values")
+        AzeriteMOP:Debug("ExplorerMode: Using fallback position values")
     end
 end
 
@@ -126,9 +126,11 @@ function ExplorerMode:OnEvent(event, ...)
         self:CheckExplorerMode()
     elseif event == "PLAYER_REGEN_DISABLED" then
         -- Combat started, disable explorer mode
+        AzeriteMOP:Debug("ExplorerMode: Combat started, disabling explorer mode")
         self:DisableExplorerMode()
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Combat ended, check if we should enable explorer mode
+        AzeriteMOP:Debug("ExplorerMode: Combat ended, checking explorer mode")
         self:CheckExplorerMode()
     end
 end
@@ -142,7 +144,7 @@ function ExplorerMode:OnUpdate(elapsed)
     -- Check if player is in combat
     if UnitAffectingCombat("player") then
         if self.isActive then
-            -- AzeriteMOP:Debug("ExplorerMode: Combat detected, disabling explorer mode")
+            AzeriteMOP:Debug("ExplorerMode: Combat detected, disabling explorer mode")
             self:DisableExplorerMode()
         end
         return
@@ -171,11 +173,13 @@ function ExplorerMode:OnUpdate(elapsed)
             if not self.isMoving then
                 self.isMoving = true
                 self.stationaryTimer = 0
+                AzeriteMOP:Debug("ExplorerMode: Player started moving (fallback detection)")
                 self:EnableExplorerMode()
             end
         else
             if self.isMoving then
                 self.isMoving = false
+                AzeriteMOP:Debug("ExplorerMode: Player stopped moving (fallback detection)")
             end
             
             -- Increment stationary timer
@@ -184,6 +188,7 @@ function ExplorerMode:OnUpdate(elapsed)
             -- Check if we should disable explorer mode
             local delay = AzeriteMOP.db.explorerMode.stationaryDelay
             if self.stationaryTimer >= delay and self.isActive then
+                AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
                 self:DisableExplorerMode()
             end
         end
@@ -207,7 +212,7 @@ function ExplorerMode:OnUpdate(elapsed)
     end
     self.debugCounter = self.debugCounter + elapsed
     if self.debugCounter >= 5.0 then -- Debug every 5 seconds
-        -- AzeriteMOP:Debug("ExplorerMode: Position " .. position.x .. ", " .. position.y .. " | Distance: " .. distance .. " | Moving: " .. tostring(isMoving))
+        AzeriteMOP:Debug("ExplorerMode: Position " .. position.x .. ", " .. position.y .. " | Distance: " .. distance .. " | Moving: " .. tostring(isMoving))
         self.debugCounter = 0
     end
     
@@ -216,14 +221,14 @@ function ExplorerMode:OnUpdate(elapsed)
         if not self.isMoving then
             self.isMoving = true
             self.stationaryTimer = 0
-            -- AzeriteMOP:Debug("ExplorerMode: Player started moving, enabling explorer mode")
+            AzeriteMOP:Debug("ExplorerMode: Player started moving, enabling explorer mode")
             self:EnableExplorerMode()
         end
     else
         -- Player is stationary
         if self.isMoving then
             self.isMoving = false
-            -- AzeriteMOP:Debug("ExplorerMode: Player stopped moving")
+            AzeriteMOP:Debug("ExplorerMode: Player stopped moving")
         end
         
         -- Increment stationary timer
@@ -232,7 +237,7 @@ function ExplorerMode:OnUpdate(elapsed)
         -- Check if we should disable explorer mode
         local delay = AzeriteMOP.db.explorerMode.stationaryDelay
         if self.stationaryTimer >= delay and self.isActive then
-            -- AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
+            AzeriteMOP:Debug("ExplorerMode: Stationary delay reached, disabling explorer mode")
             self:DisableExplorerMode()
         end
     end
@@ -246,20 +251,30 @@ function ExplorerMode:StoreOriginalStates()
     -- Store original visibility states of UI elements
     self.hiddenFrames = {}
     
-    -- Quest Log
-    if QuestLogFrame then
-        self.hiddenFrames.questLog = {
-            frame = QuestLogFrame,
-            originalShown = QuestLogFrame:IsShown()
-        }
+    -- Quest Log - try multiple possible frame names
+    local questFrames = {"QuestLogFrame", "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+    for _, frameName in ipairs(questFrames) do
+        local frame = _G[frameName]
+        if frame then
+            self.hiddenFrames[frameName] = {
+                frame = frame,
+                originalShown = frame:IsShown()
+            }
+            AzeriteMOP:Debug("ExplorerMode: Found quest frame: " .. frameName)
+        end
     end
     
-    -- Chat Frame
-    if ChatFrame1 then
-        self.hiddenFrames.chatFrame = {
-            frame = ChatFrame1,
-            originalShown = ChatFrame1:IsShown()
-        }
+    -- Chat Frame - try multiple possible frame names
+    local chatFrames = {"ChatFrame1", "ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
+    for _, frameName in ipairs(chatFrames) do
+        local frame = _G[frameName]
+        if frame then
+            self.hiddenFrames[frameName] = {
+                frame = frame,
+                originalShown = frame:IsShown()
+            }
+            AzeriteMOP:Debug("ExplorerMode: Found chat frame: " .. frameName)
+        end
     end
     
     -- Minimap (optional)
@@ -268,6 +283,7 @@ function ExplorerMode:StoreOriginalStates()
             frame = MinimapCluster,
             originalShown = MinimapCluster:IsShown()
         }
+        AzeriteMOP:Debug("ExplorerMode: Found minimap frame")
     end
     
     -- Action Bars (optional)
@@ -282,6 +298,7 @@ function ExplorerMode:StoreOriginalStates()
                 }
             end
         end
+        AzeriteMOP:Debug("ExplorerMode: Found action bar frames")
     end
 end
 
@@ -290,29 +307,48 @@ function ExplorerMode:EnableExplorerMode()
         return
     end
     
-    -- AzeriteMOP:Debug("Enabling Explorer Mode")
+    AzeriteMOP:Debug("Enabling Explorer Mode")
     self.isActive = true
     
-    -- Hide quest log
-    if AzeriteMOP.db.explorerMode.hideQuestLog and QuestLogFrame then
-        QuestLogFrame:Hide()
-        -- AzeriteMOP:Debug("ExplorerMode: Hidden QuestLogFrame")
-    else
-        -- AzeriteMOP:Debug("ExplorerMode: QuestLogFrame not found or hiding disabled")
+    -- Hide quest log and objectives
+    if AzeriteMOP.db.explorerMode.hideQuestLog then
+        -- Try multiple quest/objective frames
+        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+        for _, frameName in ipairs(questFrames) do
+            local frame = _G[frameName]
+            if frame then
+                frame:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden " .. frameName)
+            end
+        end
     end
     
     -- Hide chat frame
-    if AzeriteMOP.db.explorerMode.hideChatFrame and ChatFrame1 then
-        ChatFrame1:Hide()
-        -- AzeriteMOP:Debug("ExplorerMode: Hidden ChatFrame1")
-    else
-        -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found or hiding disabled")
+    if AzeriteMOP.db.explorerMode.hideChatFrame then
+        -- Try multiple chat frames
+        local chatFrames = {"ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
+        for _, frameName in ipairs(chatFrames) do
+            local frame = _G[frameName]
+            if frame then
+                frame:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden " .. frameName)
+            end
+        end
+        
+        -- Also try to hide the chat tabs
+        for i = 1, 10 do
+            local chatTab = _G["ChatFrame" .. i .. "Tab"]
+            if chatTab then
+                chatTab:Hide()
+                AzeriteMOP:Debug("ExplorerMode: Hidden ChatFrame" .. i .. "Tab")
+            end
+        end
     end
     
     -- Hide minimap (optional)
     if AzeriteMOP.db.explorerMode.hideMinimap and MinimapCluster then
         MinimapCluster:Hide()
-        -- AzeriteMOP:Debug("ExplorerMode: Hidden MinimapCluster")
+        AzeriteMOP:Debug("ExplorerMode: Hidden MinimapCluster")
     end
     
     -- Hide action bars (optional)
@@ -323,7 +359,7 @@ function ExplorerMode:EnableExplorerMode()
                 actionBar:Hide()
             end
         end
-        -- AzeriteMOP:Debug("ExplorerMode: Hidden action bars")
+        AzeriteMOP:Debug("ExplorerMode: Hidden action bars")
     end
 end
 
@@ -332,25 +368,46 @@ function ExplorerMode:DisableExplorerMode()
         return
     end
     
-    -- AzeriteMOP:Debug("Disabling Explorer Mode")
+    AzeriteMOP:Debug("Disabling Explorer Mode")
     self.isActive = false
     
-    -- Show quest log
-    if AzeriteMOP.db.explorerMode.hideQuestLog and QuestLogFrame then
-        QuestLogFrame:Show()
-        -- AzeriteMOP:Debug("ExplorerMode: Shown QuestLogFrame")
+    -- Show quest log and objectives
+    if AzeriteMOP.db.explorerMode.hideQuestLog then
+        local questFrames = {"QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+        for _, frameName in ipairs(questFrames) do
+            local frame = _G[frameName]
+            if frame then
+                frame:Show()
+                AzeriteMOP:Debug("ExplorerMode: Shown " .. frameName)
+            end
+        end
     end
     
     -- Show chat frame
-    if AzeriteMOP.db.explorerMode.hideChatFrame and ChatFrame1 then
-        ChatFrame1:Show()
-        -- AzeriteMOP:Debug("ExplorerMode: Shown ChatFrame1")
+    if AzeriteMOP.db.explorerMode.hideChatFrame then
+        local chatFrames = {"ChatFrame1", "ChatFrame", "ChatFrame1EditBox"}
+        for _, frameName in ipairs(chatFrames) do
+            local frame = _G[frameName]
+            if frame then
+                frame:Show()
+                AzeriteMOP:Debug("ExplorerMode: Shown " .. frameName)
+            end
+        end
+        
+        -- Also show the chat tabs
+        for i = 1, 10 do
+            local chatTab = _G["ChatFrame" .. i .. "Tab"]
+            if chatTab then
+                chatTab:Show()
+                AzeriteMOP:Debug("ExplorerMode: Shown ChatFrame" .. i .. "Tab")
+            end
+        end
     end
     
     -- Show minimap (optional)
     if AzeriteMOP.db.explorerMode.hideMinimap and MinimapCluster then
         MinimapCluster:Show()
-        -- AzeriteMOP:Debug("ExplorerMode: Shown MinimapCluster")
+        AzeriteMOP:Debug("ExplorerMode: Shown MinimapCluster")
     end
     
     -- Show action bars (optional)
@@ -361,7 +418,7 @@ function ExplorerMode:DisableExplorerMode()
                 actionBar:Show()
             end
         end
-        -- AzeriteMOP:Debug("ExplorerMode: Shown action bars")
+        AzeriteMOP:Debug("ExplorerMode: Shown action bars")
     end
 end
 
@@ -428,5 +485,17 @@ function ExplorerMode:DebugInfo()
         end
     else
         AzeriteMOP:Debug("  Could not get map ID")
+    end
+    
+    -- Test frame visibility
+    AzeriteMOP:Debug("  Frame Visibility Test:")
+    local testFrames = {"ChatFrame1", "QuestLogFrame", "ObjectiveTrackerFrame", "WatchFrame"}
+    for _, frameName in ipairs(testFrames) do
+        local frame = _G[frameName]
+        if frame then
+            AzeriteMOP:Debug("    " .. frameName .. ": " .. tostring(frame:IsShown()))
+        else
+            AzeriteMOP:Debug("    " .. frameName .. ": Not found")
+        end
     end
 end 
