@@ -1,0 +1,19 @@
+
+## Interface: 50400
+## Title: Azerite UI |cFF4488FFMoP Edition|r
+## Notes: Custom immersive user interface for MoP Classic - Player Bar Module
+## Author: Original by Goldpaw, MoP Port by [Your Name]
+## Version: 1.0.0-alpha
+## SavedVariables: AzeriteMOPDB
+
+# Core files
+Core\Core.lua
+
+# Player unit frame module
+Modules\PlayerFrame\PlayerFrame.lua
+
+# Target unit frame module
+Modules\TargetFrame\TargetFrame.lua
+
+# Explorer Mode module
+Modules\ExplorerMode\ExplorerMode.lua
