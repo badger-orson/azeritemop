@@ -13,6 +13,7 @@ ExplorerMode.isActive = false
 ExplorerMode.chatFadeTimer = nil
 ExplorerMode.chatActive = false
 ExplorerMode.lastFocusTime = 0
+ExplorerMode.watchFrameFadeTimer = nil
 
 -- Initialize database
 if AzeriteMOP and not AzeriteMOP.db then
@@ -121,7 +122,7 @@ end
 function ExplorerMode:HideUI()
     AzeriteMOP:Debug("ExplorerMode: HideUI called")
     
-    -- Just hide chat frame for now
+    -- Hide chat frame
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
         AzeriteMOP:Debug("ExplorerMode: Hiding ChatFrame1")
@@ -129,12 +130,24 @@ function ExplorerMode:HideUI()
     else
         AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
+    
+    -- Hide quest frame (WatchFrame) and set up mouse-over functionality
+    local watchFrame = _G["WatchFrame"]
+    if watchFrame then
+        AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame")
+        watchFrame:Hide()
+        
+        -- Set up mouse-over functionality for WatchFrame
+        self:SetupWatchFrameMouseOver(watchFrame)
+    else
+        AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
+    end
 end
 
 function ExplorerMode:ShowUI()
     AzeriteMOP:Debug("ExplorerMode: ShowUI called")
     
-    -- Just show chat frame for now
+    -- Show chat frame
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
         AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
@@ -143,6 +156,100 @@ function ExplorerMode:ShowUI()
     else
         AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
+    
+    -- Show quest frame (WatchFrame) and clean up overlay
+    local watchFrame = _G["WatchFrame"]
+    if watchFrame then
+        AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame")
+        watchFrame:Show()
+        watchFrame:SetAlpha(1.0)
+        
+        -- Clean up the overlay frame
+        if self.watchFrameOverlay then
+            AzeriteMOP:Debug("ExplorerMode: Cleaning up WatchFrame overlay")
+            self.watchFrameOverlay:Hide()
+            self.watchFrameOverlay = nil
+        end
+    else
+        AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
+    end
+end
+
+function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
+    AzeriteMOP:Debug("ExplorerMode: Setting up WatchFrame mouse-over")
+    
+    -- Create an invisible overlay frame in the WatchFrame area
+    local overlayFrame = CreateFrame("Frame", "ExplorerModeWatchFrameOverlay", UIParent)
+    overlayFrame:SetFrameStrata("HIGH")
+    overlayFrame:SetFrameLevel(watchFrame:GetFrameLevel() + 1)
+    
+    -- Position the overlay to match WatchFrame area (right side of screen)
+    overlayFrame:SetPoint("TOPLEFT", UIParent, "TOPRIGHT", -200, -100)
+    overlayFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 200)
+    
+    -- Make it invisible but clickable
+    overlayFrame:EnableMouse(true)
+    
+    -- Set up mouse enter (show WatchFrame)
+    overlayFrame:SetScript("OnEnter", function(self)
+        if ExplorerMode.isActive then
+            AzeriteMOP:Debug("ExplorerMode: Mouse over WatchFrame area - showing")
+            
+            -- Cancel any existing fade timer
+            if ExplorerMode.watchFrameFadeTimer then
+                ExplorerMode.watchFrameFadeTimer:Cancel()
+            end
+            
+            -- Show WatchFrame immediately
+            watchFrame:Show()
+            watchFrame:SetAlpha(1.0)
+        end
+    end)
+    
+    -- Set up mouse leave (fade out WatchFrame)
+    overlayFrame:SetScript("OnLeave", function(self)
+        if ExplorerMode.isActive then
+            AzeriteMOP:Debug("ExplorerMode: Mouse left WatchFrame area - fading out")
+            
+            -- Cancel any existing fade timer
+            if ExplorerMode.watchFrameFadeTimer then
+                ExplorerMode.watchFrameFadeTimer:Cancel()
+            end
+            
+            -- Fade out after 2 seconds
+            ExplorerMode.watchFrameFadeTimer = C_Timer.NewTimer(2.0, function()
+                if ExplorerMode.isActive then
+                    AzeriteMOP:Debug("ExplorerMode: Fading out WatchFrame")
+                    
+                    -- Create a smooth fade animation
+                    local fadeStart = GetTime()
+                    local fadeDuration = 1.0 -- 1 second fade
+                    
+                    local fadeFrame = CreateFrame("Frame")
+                    fadeFrame:SetScript("OnUpdate", function(_, elapsed)
+                        local elapsed = GetTime() - fadeStart
+                        local progress = elapsed / fadeDuration
+                        
+                        if progress >= 1.0 then
+                            -- Fade complete, hide WatchFrame
+                            AzeriteMOP:Debug("ExplorerMode: WatchFrame fade complete, hiding")
+                            watchFrame:Hide()
+                            fadeFrame:SetScript("OnUpdate", nil)
+                            fadeFrame:Hide()
+                        else
+                            -- Fade in progress
+                            local alpha = 1.0 - progress
+                            watchFrame:SetAlpha(alpha)
+                        end
+                    end)
+                end
+                ExplorerMode.watchFrameFadeTimer = nil
+            end)
+        end
+    end)
+    
+    -- Store reference to overlay frame
+    ExplorerMode.watchFrameOverlay = overlayFrame
 end
 
 function ExplorerMode:ShowChat()
