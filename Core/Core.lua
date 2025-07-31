@@ -329,6 +329,20 @@ function AzeriteMOP:HandleSlashCommand(msg)
             else
                 print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
             end
+        elseif subCommand == "on" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceEnable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "off" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceDisable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode disabled")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
         else
             print("|cFF4488FF[AzeriteMOP]|r Explorer mode commands:")
             print("  /az explorer debug - Show debug info")
@@ -338,10 +352,33 @@ function AzeriteMOP:HandleSlashCommand(msg)
             print("  /az explorer forcereset - Force reset database to defaults")
             print("  /az explorer enable - Force enable explorer mode")
             print("  /az explorer disable - Force disable explorer mode")
+            print("  /az explorer on - Enable explorer mode")
+            print("  /az explorer off - Disable explorer mode")
         end
         -- print("|cFF4488FF[AzeriteMOP]|r playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
+    elseif command == "ex" then
+        local subCommand = string.lower(args[2] or "")
+        if subCommand == "on" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceEnable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "off" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceDisable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode disabled")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Explorer mode commands:")
+            print("  /az ex on - Enable explorer mode")
+            print("  /az ex off - Disable explorer mode")
+        end
     elseif command == "checkdb" then
         -- Check the current state of saved variables
         -- print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB exists: " .. tostring(AzeriteMOPDB ~= nil))
@@ -395,6 +432,13 @@ function AzeriteMOP:HandleSlashCommand(msg)
         else
             print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
         end
+    elseif command == "scanvisible" then
+        if self.ExplorerMode then
+            print("|cFF4488FF[AzeriteMOP]|r Scanning for visible UI frames...")
+            self.ExplorerMode:ScanForVisibleFrames()
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        end
     elseif command == "restore" then
         if self.ExplorerMode then
             print("|cFF4488FF[AzeriteMOP]|r Force restoring all UI elements...")
@@ -422,6 +466,20 @@ function AzeriteMOP:HandleSlashCommand(msg)
                 end
             end
             print("|cFF4488FF[AzeriteMOP]|r All UI elements restored!")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        end
+    elseif command == "showui" then
+        if self.ExplorerMode then
+            print("|cFF4488FF[AzeriteMOP]|r Force showing all UI elements...")
+            self.ExplorerMode:ShowUI()
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        end
+    elseif command == "hideui" then
+        if self.ExplorerMode then
+            print("|cFF4488FF[AzeriteMOP]|r Force hiding all UI elements...")
+            self.ExplorerMode:HideUI()
         else
             print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
         end
@@ -686,8 +744,12 @@ function AzeriteMOP:ShowHelp()
     print("  /az forceexplorer [on|off] - Force enable/disable explorer mode")
     print("  /az scanframes - Scan for visible frames (debugging)")
     print("  /az restore - Force restore all UI elements")
+    print("  /az showui - Force show all UI elements")
+    print("  /az hideui - Force hide all UI elements")
     print("  /az showframes - Force show PlayerFrame and TargetFrame")
     print("  /az checkframes - Check frame status")
+    print("  /az ex on - Enable explorer mode (manual control)")
+    print("  /az ex off - Disable explorer mode (manual control)")
     print("  /az help - Show this help")
     print("")
     print("Examples:")
@@ -702,6 +764,8 @@ function AzeriteMOP:ShowHelp()
     print("  /az resetfonts target - Reset target fonts to default")
     print("")
     print("Explorer Mode Commands:")
+    print("  /az ex on - Enable explorer mode (manual control)")
+    print("  /az ex off - Disable explorer mode (manual control)")
     print("  /az explorer on|off - Enable/disable explorer mode")
     print("  /az explorer status - Show explorer mode status")
     print("  /az explorer delay [seconds] - Set stationary delay")
