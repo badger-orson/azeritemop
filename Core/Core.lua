@@ -76,7 +76,7 @@ function AzeriteMOP:EnsureDatabase()
             hideChatFrame = true,
             hideMinimap = false,
             hideActionBars = false,
-            stationaryDelay = 2.0,
+            stationaryDelay = 30.0,
             movementThreshold = 0.1
         }
     end
@@ -136,17 +136,17 @@ function AzeriteMOP:Initialize()
         AzeriteMOPDB.targetFrame.locked = false
     end
     
-    if not AzeriteMOPDB.explorerMode then
-        AzeriteMOPDB.explorerMode = {
-            enabled = true,
-            hideQuestLog = true,
-            hideChatFrame = true,
-            hideMinimap = false,
-            hideActionBars = false,
-            stationaryDelay = 2.0,
-            movementThreshold = 0.1
-        }
-    end
+            if not AzeriteMOPDB.explorerMode then
+            AzeriteMOPDB.explorerMode = {
+                enabled = true,
+                hideQuestLog = true,
+                hideChatFrame = true,
+                hideMinimap = false,
+                hideActionBars = false,
+                stationaryDelay = 30.0,
+                movementThreshold = 0.1
+            }
+        end
     
     self.db = AzeriteMOPDB
     
@@ -277,6 +277,68 @@ function AzeriteMOP:HandleSlashCommand(msg)
         self.db = nil
         self:EnsureDatabase()
         -- print("|cFF4488FF[AzeriteMOP]|r Database completely reset and reinitialized")
+    elseif command == "explorer" then
+        local subCommand = string.lower(args[2] or "")
+        if subCommand == "debug" then
+            if self.ExplorerMode then
+                self.ExplorerMode:DebugInfo()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "checkdelay" then
+            if self.ExplorerMode then
+                self.ExplorerMode:CheckDelayValue()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "resetdelay" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ResetStationaryDelay()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "enable" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceEnable()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "disable" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceDisable()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        elseif subCommand == "setdelay" then
+            local seconds = tonumber(args[3])
+            if seconds and seconds > 0 then
+                if self.ExplorerMode then
+                    self.ExplorerMode:SetStationaryDelay(seconds)
+                    print("|cFF4488FF[AzeriteMOP]|r Stationary delay set to " .. seconds .. " seconds")
+                else
+                    print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+                end
+            else
+                print("|cFF4488FF[AzeriteMOP]|r Usage: /az explorer setdelay <seconds>")
+                print("  Example: /az explorer setdelay 30")
+            end
+        elseif subCommand == "forcereset" then
+            if self.ExplorerMode then
+                self.ExplorerMode:ForceResetDatabase()
+                print("|cFF4488FF[AzeriteMOP]|r Database force reset complete")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+            end
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Explorer mode commands:")
+            print("  /az explorer debug - Show debug info")
+            print("  /az explorer checkdelay - Check current delay value")
+            print("  /az explorer resetdelay - Reset delay to 30 seconds")
+            print("  /az explorer setdelay <seconds> - Set delay to specific seconds")
+            print("  /az explorer forcereset - Force reset database to defaults")
+            print("  /az explorer enable - Force enable explorer mode")
+            print("  /az explorer disable - Force disable explorer mode")
+        end
         -- print("|cFF4488FF[AzeriteMOP]|r playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
@@ -329,8 +391,7 @@ function AzeriteMOP:HandleSlashCommand(msg)
     elseif command == "scanframes" then
         if self.ExplorerMode then
             print("|cFF4488FF[AzeriteMOP]|r Scanning for visible frames...")
-            self.ExplorerMode:DebugInfo()
-            self.ExplorerMode:CheckForExtraFrames()
+            self.ExplorerMode:ScanVisibleFrames()
         else
             print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
         end
