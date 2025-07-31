@@ -136,17 +136,18 @@ function AzeriteMOP:Initialize()
         AzeriteMOPDB.targetFrame.locked = false
     end
     
-            if not AzeriteMOPDB.explorerMode then
-            AzeriteMOPDB.explorerMode = {
-                enabled = true,
-                hideQuestLog = true,
-                hideChatFrame = true,
-                hideMinimap = false,
-                hideActionBars = false,
-                stationaryDelay = 30.0,
-                movementThreshold = 0.1
-            }
-        end
+                if not AzeriteMOPDB.explorerMode then
+        AzeriteMOPDB.explorerMode = {
+            enabled = true,
+            hideQuestLog = true,
+            hideChatFrame = true,
+            hideMinimap = false,
+            hideActionBars = false,
+            stationaryDelay = 30.0,
+            movementThreshold = 0.1,
+            isActive = false
+        }
+    end
     
     self.db = AzeriteMOPDB
     
@@ -788,6 +789,29 @@ end)
 function AzeriteMOP:IsMoPClassic()
     local version = select(4, GetBuildInfo())
     return version >= 50400 and version < 60000
+end
+
+-- Explorer Mode State Management
+function AzeriteMOP:SetExplorerModeActive(active)
+    self:EnsureDatabase()
+    self.db.explorerMode.isActive = active
+    AzeriteMOP:Debug("Explorer mode active state set to: " .. tostring(active))
+end
+
+function AzeriteMOP:GetExplorerModeActive()
+    self:EnsureDatabase()
+    return self.db.explorerMode.isActive or false
+end
+
+function AzeriteMOP:SetExplorerModeEnabled(enabled)
+    self:EnsureDatabase()
+    self.db.explorerMode.enabled = enabled
+    AzeriteMOP:Debug("Explorer mode enabled state set to: " .. tostring(enabled))
+end
+
+function AzeriteMOP:GetExplorerModeEnabled()
+    self:EnsureDatabase()
+    return self.db.explorerMode.enabled or false
 end
 
 -- Safety check

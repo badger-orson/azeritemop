@@ -9,7 +9,6 @@ AzeriteMOP.ExplorerMode = {}
 local ExplorerMode = AzeriteMOP.ExplorerMode
 
 -- Simple state tracking
-ExplorerMode.isActive = false
 ExplorerMode.chatFadeTimer = nil
 ExplorerMode.chatActive = false
 ExplorerMode.lastFocusTime = 0
@@ -17,6 +16,39 @@ ExplorerMode.watchFrameFadeTimer = nil
 ExplorerMode.microMenuFadeTimer = nil
 ExplorerMode.watchFrameCooldown = nil
 ExplorerMode.microMenuCooldown = nil
+
+-- Get active state from Core database
+function ExplorerMode:GetIsActive()
+    if AzeriteMOP and AzeriteMOP.GetExplorerModeActive then
+        return AzeriteMOP:GetExplorerModeActive()
+    elseif AzeriteMOP and AzeriteMOP.db and AzeriteMOP.db.explorerMode then
+        -- Direct database access as fallback
+        return AzeriteMOP.db.explorerMode.isActive or false
+    else
+        -- Fallback to local state if Core functions aren't available yet
+        return ExplorerMode._localIsActive or false
+    end
+end
+
+function ExplorerMode:SetIsActive(active)
+    ExplorerMode._localIsActive = active
+    if AzeriteMOP and AzeriteMOP.SetExplorerModeActive then
+        AzeriteMOP:SetExplorerModeActive(active)
+    end
+end
+
+-- Force enable/disable methods for Core.lua compatibility
+function ExplorerMode:ForceEnable()
+    -- AzeriteMOP:Debug("ExplorerMode: ForceEnable called")
+    self:SetIsActive(true)
+    self:HideUI()
+end
+
+function ExplorerMode:ForceDisable()
+    -- AzeriteMOP:Debug("ExplorerMode: ForceDisable called")
+    self:SetIsActive(false)
+    self:ShowUI()
+end
 
 -- Initialize database
 if AzeriteMOP and not AzeriteMOP.db then
@@ -30,9 +62,20 @@ if AzeriteMOP and AzeriteMOP.db and not AzeriteMOP.db.explorerMode then
 end
 
 function ExplorerMode:Initialize()
-    AzeriteMOP:Debug("ExplorerMode: Initialize called")
+    -- AzeriteMOP:Debug("ExplorerMode: Initialize called")
     self:SetupSlashCommands()
     self:SetupChatHooks()
+    
+    -- Wait a frame to ensure Core functions are available, then restore state
+    C_Timer.After(0.1, function()
+        -- Restore explorer mode state from saved variables
+        if self:GetIsActive() then
+            -- AzeriteMOP:Debug("ExplorerMode: Restoring active state from saved variables")
+            self:HideUI()
+        else
+            -- AzeriteMOP:Debug("ExplorerMode: No active state to restore")
+        end
+    end)
 end
 
 function ExplorerMode:SetupSlashCommands()
@@ -40,39 +83,47 @@ function ExplorerMode:SetupSlashCommands()
     SLASH_EXPLORER_TEST1 = "/explorer"
     SlashCmdList["EXPLORER_TEST"] = function(msg)
         if msg == "hide" then
-            AzeriteMOP:Debug("ExplorerMode: Hiding UI")
+            -- AzeriteMOP:Debug("ExplorerMode: Hiding UI")
             self:HideUI()
         elseif msg == "show" then
-            AzeriteMOP:Debug("ExplorerMode: Showing UI")
+            -- AzeriteMOP:Debug("ExplorerMode: Showing UI")
             self:ShowUI()
         elseif msg == "on" then
-            AzeriteMOP:Debug("ExplorerMode: Enabling explorer mode")
-            self.isActive = true
+            -- AzeriteMOP:Debug("ExplorerMode: Enabling explorer mode")
+            self:SetIsActive(true)
             self:HideUI()
         elseif msg == "off" then
-            AzeriteMOP:Debug("ExplorerMode: Disabling explorer mode")
-            self.isActive = false
+            -- AzeriteMOP:Debug("ExplorerMode: Disabling explorer mode")
+            self:SetIsActive(false)
             self:ShowUI()
         elseif msg == "debug" then
-            AzeriteMOP:Debug("ExplorerMode: Toggling debug frames")
+            -- AzeriteMOP:Debug("ExplorerMode: Toggling debug frames")
             self:ToggleDebugFrames()
+        elseif msg == "status" then
+            -- AzeriteMOP:Debug("ExplorerMode: Checking status")
+            local isActive = self:GetIsActive()
+            print("|cFF4488FF[AzeriteMOP]|r Explorer mode active: " .. tostring(isActive))
+            if AzeriteMOP and AzeriteMOP.db and AzeriteMOP.db.explorerMode then
+                print("|cFF4488FF[AzeriteMOP]|r Database isActive: " .. tostring(AzeriteMOP.db.explorerMode.isActive))
+            end
         else
             print("ExplorerMode Commands:")
             print("/explorer hide - Hide UI")
             print("/explorer show - Show UI")
             print("/explorer on - Enable explorer mode")
             print("/explorer off - Disable explorer mode")
+            print("/explorer status - Check current status")
             print("/explorer debug - Toggle debug frame borders")
         end
     end
 end
 
 function ExplorerMode:SetupChatHooks()
-    AzeriteMOP:Debug("ExplorerMode: Setting up chat hooks")
+    -- AzeriteMOP:Debug("ExplorerMode: Setting up chat hooks")
     
     local chatEditBox = _G["ChatFrame1EditBox"]
     if chatEditBox then
-        AzeriteMOP:Debug("ExplorerMode: Found ChatFrame1EditBox")
+        -- AzeriteMOP:Debug("ExplorerMode: Found ChatFrame1EditBox")
         
         -- Store original functions
         chatEditBox._originalOnEditFocusGained = chatEditBox:GetScript("OnEditFocusGained")
@@ -83,11 +134,29 @@ function ExplorerMode:SetupChatHooks()
         -- Hook into focus gained (when chat is opened)
         chatEditBox:SetScript("OnEditFocusGained", function(self)
             local currentTime = GetTime()
-            AzeriteMOP:Debug("ExplorerMode: Chat focus gained")
-            if ExplorerMode.isActive and not ExplorerMode.chatActive and (currentTime - ExplorerMode.lastFocusTime) > 0.5 then
-                ExplorerMode.chatActive = true
-                ExplorerMode.lastFocusTime = currentTime
-                ExplorerMode:ShowChat()
+            -- AzeriteMOP:Debug("ExplorerMode: Chat focus gained")
+            -- Only trigger if user actually clicked on chat or pressed Enter
+            if ExplorerMode:GetIsActive() and not ExplorerMode.chatActive and (currentTime - ExplorerMode.lastFocusTime) > 0.5 then
+                -- Check if this is actual user interaction, not system messages
+                local text = self:GetText()
+                if text == "" or text == nil then
+                    -- Only show chat if user is actually typing (empty text means fresh focus)
+                    ExplorerMode.chatActive = true
+                    ExplorerMode.lastFocusTime = currentTime
+                    ExplorerMode:ShowChat()
+                else
+                    -- If text exists, it might be a system message - show briefly then fade
+                    -- AzeriteMOP:Debug("ExplorerMode: Chat focus gained with existing text - showing briefly")
+                    ExplorerMode.chatActive = true
+                    ExplorerMode.lastFocusTime = currentTime
+                    ExplorerMode:ShowChat()
+                    -- Auto-fade after a short delay
+                    C_Timer.After(2.0, function()
+                        if ExplorerMode:GetIsActive() and ExplorerMode.chatActive then
+                            ExplorerMode:OnChatSubmitted()
+                        end
+                    end)
+                end
             end
             if chatEditBox._originalOnEditFocusGained then
                 chatEditBox._originalOnEditFocusGained(self)
@@ -96,11 +165,13 @@ function ExplorerMode:SetupChatHooks()
         
         -- Hook into key down to detect Enter key
         chatEditBox:SetScript("OnKeyDown", function(self, key)
-            if ExplorerMode.isActive and key == "ENTER" then
+            if ExplorerMode:GetIsActive() and key == "ENTER" then
                 local text = self:GetText()
-                AzeriteMOP:Debug("ExplorerMode: Enter key pressed with text: " .. (text or "empty"))
-                -- Trigger chat submission on any Enter key press
-                ExplorerMode:OnChatSubmitted()
+                -- AzeriteMOP:Debug("ExplorerMode: Enter key pressed with text: " .. (text or "empty"))
+                -- Only trigger if user is actually typing (not system messages)
+                if ExplorerMode.chatActive then
+                    ExplorerMode:OnChatSubmitted()
+                end
             end
             if chatEditBox._originalOnKeyDown then
                 chatEditBox._originalOnKeyDown(self, key)
@@ -109,12 +180,18 @@ function ExplorerMode:SetupChatHooks()
         
         -- Hook into focus lost (when chat is submitted)
         chatEditBox:SetScript("OnEditFocusLost", function(self)
-            AzeriteMOP:Debug("ExplorerMode: Chat focus lost")
-            if ExplorerMode.isActive and ExplorerMode.chatActive then
+            -- AzeriteMOP:Debug("ExplorerMode: Chat focus lost")
+            if ExplorerMode:GetIsActive() and ExplorerMode.chatActive then
                 local text = self:GetText()
-                AzeriteMOP:Debug("ExplorerMode: Chat focus lost with text: " .. (text or "empty"))
-                -- Always trigger fade on focus lost (whether there's text or not)
-                ExplorerMode:OnChatSubmitted()
+                -- AzeriteMOP:Debug("ExplorerMode: Chat focus lost with text: " .. (text or "empty"))
+                -- Only trigger fade if user was actually typing
+                if text and text ~= "" then
+                    ExplorerMode:OnChatSubmitted()
+                else
+                    -- If no text was entered, just hide chat immediately
+                    ExplorerMode:ShowChat()
+                    ExplorerMode:OnChatSubmitted()
+                end
                 ExplorerMode.chatActive = false
             end
             if chatEditBox._originalOnEditFocusLost then
@@ -122,32 +199,32 @@ function ExplorerMode:SetupChatHooks()
             end
         end)
     else
-        AzeriteMOP:Debug("ExplorerMode: ChatFrame1EditBox not found")
+        -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1EditBox not found")
     end
 end
 
 function ExplorerMode:HideUI()
-    AzeriteMOP:Debug("ExplorerMode: HideUI called")
+    -- AzeriteMOP:Debug("ExplorerMode: HideUI called")
     
     -- Hide chat frame
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        AzeriteMOP:Debug("ExplorerMode: Hiding ChatFrame1")
+        -- AzeriteMOP:Debug("ExplorerMode: Hiding ChatFrame1")
         chatFrame1:Hide()
     else
-        AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
+        -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
     
     -- Hide quest frame (WatchFrame) and set up mouse-over functionality
     local watchFrame = _G["WatchFrame"]
     if watchFrame then
-        AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame")
+        -- AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame")
         watchFrame:Hide()
         
         -- Set up mouse-over functionality for WatchFrame
         self:SetupWatchFrameMouseOver(watchFrame)
     else
-        AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
+        -- AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
     end
     
     -- Hide MicroMenu buttons and set up mouse-over functionality
@@ -158,10 +235,10 @@ function ExplorerMode:HideUI()
     for _, buttonName in ipairs(microButtons) do
         local button = _G[buttonName]
         if button then
-            AzeriteMOP:Debug("ExplorerMode: Hiding " .. buttonName)
+            -- AzeriteMOP:Debug("ExplorerMode: Hiding " .. buttonName)
             button:Hide()
         else
-            AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
+            -- AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
         end
     end
     
@@ -170,33 +247,33 @@ function ExplorerMode:HideUI()
 end
 
 function ExplorerMode:ShowUI()
-    AzeriteMOP:Debug("ExplorerMode: ShowUI called")
+    -- AzeriteMOP:Debug("ExplorerMode: ShowUI called")
     
     -- Show chat frame
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
         chatFrame1:Show()
         chatFrame1:SetAlpha(1.0)
     else
-        AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
+        -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
     
     -- Show quest frame (WatchFrame) and clean up overlay
     local watchFrame = _G["WatchFrame"]
     if watchFrame then
-        AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame")
         watchFrame:Show()
         watchFrame:SetAlpha(1.0)
         
         -- Clean up the overlay frame
         if self.watchFrameOverlay then
-            AzeriteMOP:Debug("ExplorerMode: Cleaning up WatchFrame overlay")
+            -- AzeriteMOP:Debug("ExplorerMode: Cleaning up WatchFrame overlay")
             self.watchFrameOverlay:Hide()
             self.watchFrameOverlay = nil
         end
     else
-        AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
+        -- AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
     end
     
     -- Show MicroMenu buttons and clean up overlay
@@ -207,24 +284,24 @@ function ExplorerMode:ShowUI()
     for _, buttonName in ipairs(microButtons) do
         local button = _G[buttonName]
         if button then
-            AzeriteMOP:Debug("ExplorerMode: Showing " .. buttonName)
+            -- AzeriteMOP:Debug("ExplorerMode: Showing " .. buttonName)
             button:Show()
             button:SetAlpha(1.0)
         else
-            AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
+            -- AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
         end
     end
     
     -- Clean up the MicroMenu overlay frame
     if self.microMenuOverlay then
-        AzeriteMOP:Debug("ExplorerMode: Cleaning up MicroMenu overlay")
+        -- AzeriteMOP:Debug("ExplorerMode: Cleaning up MicroMenu overlay")
         self.microMenuOverlay:Hide()
         self.microMenuOverlay = nil
     end
 end
 
 function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
-    AzeriteMOP:Debug("ExplorerMode: Setting up WatchFrame mouse-over")
+    -- AzeriteMOP:Debug("ExplorerMode: Setting up WatchFrame mouse-over")
     
     -- Create an invisible overlay frame in the WatchFrame area
     local overlayFrame = CreateFrame("Frame", "ExplorerModeWatchFrameOverlay", UIParent)
@@ -246,8 +323,12 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
     
     -- Set up mouse enter (show WatchFrame)
     overlayFrame:SetScript("OnEnter", function(self)
-        if ExplorerMode.isActive and not self.isShowing and not ExplorerMode.watchFrameCooldown then
-            AzeriteMOP:Debug("ExplorerMode: Mouse over WatchFrame area - showing")
+        -- AzeriteMOP:Debug("ExplorerMode: Mouse entered WatchFrame overlay area")
+        local isActive = ExplorerMode:GetIsActive()
+        -- AzeriteMOP:Debug("ExplorerMode: isActive = " .. tostring(isActive) .. ", isShowing = " .. tostring(self.isShowing) .. ", cooldown = " .. tostring(ExplorerMode.watchFrameCooldown ~= nil))
+        
+        if isActive and not self.isShowing and not ExplorerMode.watchFrameCooldown then
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse over WatchFrame area - showing")
             
             -- Cancel any existing fade timer
             if ExplorerMode.watchFrameFadeTimer then
@@ -267,13 +348,15 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
             ExplorerMode.watchFrameCooldown = C_Timer.NewTimer(0.5, function()
                 ExplorerMode.watchFrameCooldown = nil
             end)
+        else
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse over WatchFrame area - conditions not met")
         end
     end)
     
     -- Set up mouse leave (fade out WatchFrame)
     overlayFrame:SetScript("OnLeave", function(self)
-        if ExplorerMode.isActive and self.isShowing and not ExplorerMode.watchFrameCooldown then
-            AzeriteMOP:Debug("ExplorerMode: Mouse left WatchFrame area - fading out")
+        if ExplorerMode:GetIsActive() and self.isShowing and not ExplorerMode.watchFrameCooldown then
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse left WatchFrame area - fading out")
             
             -- Cancel any existing fade timer
             if ExplorerMode.watchFrameFadeTimer then
@@ -290,8 +373,8 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
             
             -- Fade out after 3 seconds
             ExplorerMode.watchFrameFadeTimer = C_Timer.NewTimer(3.0, function()
-                if ExplorerMode.isActive then
-                    AzeriteMOP:Debug("ExplorerMode: Fading out WatchFrame")
+                if ExplorerMode:GetIsActive() then
+                    -- AzeriteMOP:Debug("ExplorerMode: Fading out WatchFrame")
                     
                     -- Create a smooth fade animation
                     local fadeStart = GetTime()
@@ -304,7 +387,7 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
                         
                         if progress >= 1.0 then
                             -- Fade complete, hide WatchFrame
-                            AzeriteMOP:Debug("ExplorerMode: WatchFrame fade complete, hiding")
+                            -- AzeriteMOP:Debug("ExplorerMode: WatchFrame fade complete, hiding")
                             watchFrame:Hide()
                             fadeFrame:SetScript("OnUpdate", nil)
                             fadeFrame:Hide()
@@ -325,7 +408,7 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
 end
 
 function ExplorerMode:SetupMicroMenuMouseOver()
-    AzeriteMOP:Debug("ExplorerMode: Setting up MicroMenu mouse-over")
+    -- AzeriteMOP:Debug("ExplorerMode: Setting up MicroMenu mouse-over")
     
     -- Create an invisible overlay frame in the MicroMenu area (bottom-right)
     local overlayFrame = CreateFrame("Frame", "ExplorerModeMicroMenuOverlay", UIParent)
@@ -347,8 +430,12 @@ function ExplorerMode:SetupMicroMenuMouseOver()
     
     -- Set up mouse enter (show MicroMenu)
     overlayFrame:SetScript("OnEnter", function(self)
-        if ExplorerMode.isActive and not self.isShowing and not ExplorerMode.microMenuCooldown then
-            AzeriteMOP:Debug("ExplorerMode: Mouse over MicroMenu area - showing")
+        -- AzeriteMOP:Debug("ExplorerMode: Mouse entered MicroMenu overlay area")
+        local isActive = ExplorerMode:GetIsActive()
+        -- AzeriteMOP:Debug("ExplorerMode: isActive = " .. tostring(isActive) .. ", isShowing = " .. tostring(self.isShowing) .. ", cooldown = " .. tostring(ExplorerMode.microMenuCooldown ~= nil))
+        
+        if isActive and not self.isShowing and not ExplorerMode.microMenuCooldown then
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse over MicroMenu area - showing")
             
             -- Cancel any existing fade timer
             if ExplorerMode.microMenuFadeTimer then
@@ -377,13 +464,15 @@ function ExplorerMode:SetupMicroMenuMouseOver()
             ExplorerMode.microMenuCooldown = C_Timer.NewTimer(0.5, function()
                 ExplorerMode.microMenuCooldown = nil
             end)
+        else
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse over MicroMenu area - conditions not met")
         end
     end)
     
     -- Set up mouse leave (fade out MicroMenu)
     overlayFrame:SetScript("OnLeave", function(self)
-        if ExplorerMode.isActive and self.isShowing and not ExplorerMode.microMenuCooldown then
-            AzeriteMOP:Debug("ExplorerMode: Mouse left MicroMenu area - fading out")
+        if ExplorerMode:GetIsActive() and self.isShowing and not ExplorerMode.microMenuCooldown then
+            -- AzeriteMOP:Debug("ExplorerMode: Mouse left MicroMenu area - fading out")
             
             -- Cancel any existing fade timer
             if ExplorerMode.microMenuFadeTimer then
@@ -400,8 +489,8 @@ function ExplorerMode:SetupMicroMenuMouseOver()
             
             -- Fade out after 3 seconds
             ExplorerMode.microMenuFadeTimer = C_Timer.NewTimer(3.0, function()
-                if ExplorerMode.isActive then
-                    AzeriteMOP:Debug("ExplorerMode: Fading out MicroMenu")
+                if ExplorerMode:GetIsActive() then
+                    -- AzeriteMOP:Debug("ExplorerMode: Fading out MicroMenu")
                     
                     -- Create a smooth fade animation
                     local fadeStart = GetTime()
@@ -414,7 +503,7 @@ function ExplorerMode:SetupMicroMenuMouseOver()
                         
                         if progress >= 1.0 then
                             -- Fade complete, hide all MicroMenu buttons
-                            AzeriteMOP:Debug("ExplorerMode: MicroMenu fade complete, hiding")
+                            -- AzeriteMOP:Debug("ExplorerMode: MicroMenu fade complete, hiding")
                             local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
                                                  "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
                                                  "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
@@ -453,19 +542,19 @@ function ExplorerMode:SetupMicroMenuMouseOver()
 end
 
 function ExplorerMode:ToggleDebugFrames()
-    AzeriteMOP:Debug("ExplorerMode: ToggleDebugFrames called")
+    -- AzeriteMOP:Debug("ExplorerMode: ToggleDebugFrames called")
     
     -- Toggle WatchFrame overlay debug
     if self.watchFrameOverlay then
         if self.watchFrameOverlay.debugEnabled then
-            AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame debug border")
+            -- AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame debug border")
             self.watchFrameOverlay:SetAlpha(0.0)
             if self.watchFrameOverlay.bgTexture then
                 self.watchFrameOverlay.bgTexture:SetColorTexture(0, 1, 0, 0.0) -- Green, transparent
             end
             self.watchFrameOverlay.debugEnabled = false
         else
-            AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame debug border")
+            -- AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame debug border")
             self.watchFrameOverlay:SetAlpha(0.3) -- Make it slightly visible
             if self.watchFrameOverlay.bgTexture then
                 self.watchFrameOverlay.bgTexture:SetColorTexture(0, 1, 0, 0.3) -- Green, semi-transparent
@@ -477,14 +566,14 @@ function ExplorerMode:ToggleDebugFrames()
     -- Toggle MicroMenu overlay debug
     if self.microMenuOverlay then
         if self.microMenuOverlay.debugEnabled then
-            AzeriteMOP:Debug("ExplorerMode: Hiding MicroMenu debug border")
+            -- AzeriteMOP:Debug("ExplorerMode: Hiding MicroMenu debug border")
             self.microMenuOverlay:SetAlpha(0.0)
             if self.microMenuOverlay.bgTexture then
                 self.microMenuOverlay.bgTexture:SetColorTexture(1, 0, 0, 0.0) -- Red, transparent
             end
             self.microMenuOverlay.debugEnabled = false
         else
-            AzeriteMOP:Debug("ExplorerMode: Showing MicroMenu debug border")
+            -- AzeriteMOP:Debug("ExplorerMode: Showing MicroMenu debug border")
             self.microMenuOverlay:SetAlpha(0.3) -- Make it slightly visible
             if self.microMenuOverlay.bgTexture then
                 self.microMenuOverlay.bgTexture:SetColorTexture(1, 0, 0, 0.3) -- Red, semi-transparent
@@ -495,12 +584,12 @@ function ExplorerMode:ToggleDebugFrames()
 end
 
 function ExplorerMode:ShowChat()
-    AzeriteMOP:Debug("ExplorerMode: ShowChat called")
+    -- AzeriteMOP:Debug("ExplorerMode: ShowChat called")
     
     -- Show the main chat frame
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
         chatFrame1:Show()
         chatFrame1:SetAlpha(1.0)
     end
@@ -508,7 +597,7 @@ function ExplorerMode:ShowChat()
     -- Show the chat edit box
     local chatEditBox = _G["ChatFrame1EditBox"]
     if chatEditBox then
-        AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1EditBox")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1EditBox")
         chatEditBox:Show()
         chatEditBox:SetAlpha(1.0)
     end
@@ -516,7 +605,7 @@ function ExplorerMode:ShowChat()
     -- Show chat tabs
     local chatTab1 = _G["ChatFrame1Tab"]
     if chatTab1 then
-        AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1Tab")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1Tab")
         chatTab1:Show()
         chatTab1:SetAlpha(1.0)
     end
@@ -524,14 +613,14 @@ function ExplorerMode:ShowChat()
     -- Show chat background (but make it transparent)
     local chatBackground = _G["ChatFrame1Background"]
     if chatBackground then
-        AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1Background (transparent)")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1Background (transparent)")
         chatBackground:Show()
         chatBackground:SetAlpha(0.0) -- Make background transparent
     end
 end
 
 function ExplorerMode:OnChatSubmitted()
-    AzeriteMOP:Debug("ExplorerMode: OnChatSubmitted called")
+    -- AzeriteMOP:Debug("ExplorerMode: OnChatSubmitted called")
     
     -- Cancel any existing fade timer
     if self.chatFadeTimer then
@@ -540,7 +629,7 @@ function ExplorerMode:OnChatSubmitted()
     
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        AzeriteMOP:Debug("ExplorerMode: Chat submitted - showing for 5 seconds")
+        -- AzeriteMOP:Debug("ExplorerMode: Chat submitted - showing for 5 seconds")
         chatFrame1:Show()
         chatFrame1:SetAlpha(1.0)
         
@@ -567,8 +656,8 @@ function ExplorerMode:OnChatSubmitted()
         
         -- Fade out after 5 seconds
         self.chatFadeTimer = C_Timer.NewTimer(5.0, function()
-            if self.isActive then
-                AzeriteMOP:Debug("ExplorerMode: Starting fade out")
+            if self:GetIsActive() then
+                -- AzeriteMOP:Debug("ExplorerMode: Starting fade out")
                 
                 -- Create a smooth fade animation
                 local fadeStart = GetTime()
@@ -581,7 +670,7 @@ function ExplorerMode:OnChatSubmitted()
                     
                     if progress >= 1.0 then
                         -- Fade complete, hide all frames
-                        AzeriteMOP:Debug("ExplorerMode: Fade complete, hiding frames")
+                        -- AzeriteMOP:Debug("ExplorerMode: Fade complete, hiding frames")
                         chatFrame1:Hide()
                         
                         local chatEditBox = _G["ChatFrame1EditBox"]
