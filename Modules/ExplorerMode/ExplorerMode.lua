@@ -14,6 +14,9 @@ ExplorerMode.chatFadeTimer = nil
 ExplorerMode.chatActive = false
 ExplorerMode.lastFocusTime = 0
 ExplorerMode.watchFrameFadeTimer = nil
+ExplorerMode.microMenuFadeTimer = nil
+ExplorerMode.watchFrameCooldown = nil
+ExplorerMode.microMenuCooldown = nil
 
 -- Initialize database
 if AzeriteMOP and not AzeriteMOP.db then
@@ -50,12 +53,16 @@ function ExplorerMode:SetupSlashCommands()
             AzeriteMOP:Debug("ExplorerMode: Disabling explorer mode")
             self.isActive = false
             self:ShowUI()
+        elseif msg == "debug" then
+            AzeriteMOP:Debug("ExplorerMode: Toggling debug frames")
+            self:ToggleDebugFrames()
         else
             print("ExplorerMode Commands:")
             print("/explorer hide - Hide UI")
             print("/explorer show - Show UI")
             print("/explorer on - Enable explorer mode")
             print("/explorer off - Disable explorer mode")
+            print("/explorer debug - Toggle debug frame borders")
         end
     end
 end
@@ -142,6 +149,24 @@ function ExplorerMode:HideUI()
     else
         AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
     end
+    
+    -- Hide MicroMenu buttons and set up mouse-over functionality
+    local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+                         "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+                         "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
+                         "PVPMicroButton", "MainMenuMicroButton", "StoreMicroButton", "HelpMicroButton"}
+    for _, buttonName in ipairs(microButtons) do
+        local button = _G[buttonName]
+        if button then
+            AzeriteMOP:Debug("ExplorerMode: Hiding " .. buttonName)
+            button:Hide()
+        else
+            AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
+        end
+    end
+    
+    -- Set up mouse-over functionality for MicroMenu
+    self:SetupMicroMenuMouseOver()
 end
 
 function ExplorerMode:ShowUI()
@@ -173,6 +198,29 @@ function ExplorerMode:ShowUI()
     else
         AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
     end
+    
+    -- Show MicroMenu buttons and clean up overlay
+    local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+                         "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+                         "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
+                         "PVPMicroButton", "MainMenuMicroButton", "StoreMicroButton", "HelpMicroButton"}
+    for _, buttonName in ipairs(microButtons) do
+        local button = _G[buttonName]
+        if button then
+            AzeriteMOP:Debug("ExplorerMode: Showing " .. buttonName)
+            button:Show()
+            button:SetAlpha(1.0)
+        else
+            AzeriteMOP:Debug("ExplorerMode: " .. buttonName .. " not found")
+        end
+    end
+    
+    -- Clean up the MicroMenu overlay frame
+    if self.microMenuOverlay then
+        AzeriteMOP:Debug("ExplorerMode: Cleaning up MicroMenu overlay")
+        self.microMenuOverlay:Hide()
+        self.microMenuOverlay = nil
+    end
 end
 
 function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
@@ -180,19 +228,25 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
     
     -- Create an invisible overlay frame in the WatchFrame area
     local overlayFrame = CreateFrame("Frame", "ExplorerModeWatchFrameOverlay", UIParent)
-    overlayFrame:SetFrameStrata("HIGH")
-    overlayFrame:SetFrameLevel(watchFrame:GetFrameLevel() + 1)
+    overlayFrame:SetFrameStrata("MEDIUM")
+    overlayFrame:SetFrameLevel(watchFrame:GetFrameLevel() - 1)
     
-    -- Position the overlay to match WatchFrame area (right side of screen)
-    overlayFrame:SetPoint("TOPLEFT", UIParent, "TOPRIGHT", -200, -100)
-    overlayFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -50, 200)
+    -- Position the overlay to match WatchFrame area (right side of screen) - more precise positioning
+    overlayFrame:SetPoint("TOPLEFT", UIParent, "TOPRIGHT", -220, -20)
+    overlayFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -20, 150)
     
     -- Make it invisible but clickable
     overlayFrame:EnableMouse(true)
     
+    -- Add a background texture for debugging
+    local bgTexture = overlayFrame:CreateTexture(nil, "BACKGROUND")
+    bgTexture:SetAllPoints()
+    bgTexture:SetColorTexture(0, 1, 0, 0.0) -- Green, fully transparent initially
+    overlayFrame.bgTexture = bgTexture
+    
     -- Set up mouse enter (show WatchFrame)
     overlayFrame:SetScript("OnEnter", function(self)
-        if ExplorerMode.isActive then
+        if ExplorerMode.isActive and not self.isShowing and not ExplorerMode.watchFrameCooldown then
             AzeriteMOP:Debug("ExplorerMode: Mouse over WatchFrame area - showing")
             
             -- Cancel any existing fade timer
@@ -200,15 +254,25 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
                 ExplorerMode.watchFrameFadeTimer:Cancel()
             end
             
-            -- Show WatchFrame immediately
+            -- Show WatchFrame immediately and bring it to front
             watchFrame:Show()
             watchFrame:SetAlpha(1.0)
+            watchFrame:SetFrameStrata("HIGH")
+            watchFrame:SetFrameLevel(1000)
+            
+            -- Mark as showing
+            self.isShowing = true
+            
+            -- Set cooldown to prevent rapid triggering
+            ExplorerMode.watchFrameCooldown = C_Timer.NewTimer(0.5, function()
+                ExplorerMode.watchFrameCooldown = nil
+            end)
         end
     end)
     
     -- Set up mouse leave (fade out WatchFrame)
     overlayFrame:SetScript("OnLeave", function(self)
-        if ExplorerMode.isActive then
+        if ExplorerMode.isActive and self.isShowing and not ExplorerMode.watchFrameCooldown then
             AzeriteMOP:Debug("ExplorerMode: Mouse left WatchFrame area - fading out")
             
             -- Cancel any existing fade timer
@@ -216,8 +280,16 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
                 ExplorerMode.watchFrameFadeTimer:Cancel()
             end
             
-            -- Fade out after 2 seconds
-            ExplorerMode.watchFrameFadeTimer = C_Timer.NewTimer(2.0, function()
+            -- Mark as not showing
+            self.isShowing = false
+            
+            -- Set cooldown to prevent rapid triggering
+            ExplorerMode.watchFrameCooldown = C_Timer.NewTimer(0.5, function()
+                ExplorerMode.watchFrameCooldown = nil
+            end)
+            
+            -- Fade out after 3 seconds
+            ExplorerMode.watchFrameFadeTimer = C_Timer.NewTimer(3.0, function()
                 if ExplorerMode.isActive then
                     AzeriteMOP:Debug("ExplorerMode: Fading out WatchFrame")
                     
@@ -250,6 +322,176 @@ function ExplorerMode:SetupWatchFrameMouseOver(watchFrame)
     
     -- Store reference to overlay frame
     ExplorerMode.watchFrameOverlay = overlayFrame
+end
+
+function ExplorerMode:SetupMicroMenuMouseOver()
+    AzeriteMOP:Debug("ExplorerMode: Setting up MicroMenu mouse-over")
+    
+    -- Create an invisible overlay frame in the MicroMenu area (bottom-right)
+    local overlayFrame = CreateFrame("Frame", "ExplorerModeMicroMenuOverlay", UIParent)
+    overlayFrame:SetFrameStrata("MEDIUM")
+    overlayFrame:SetFrameLevel(1)
+    
+    -- Position the overlay to match MicroMenu area (bottom-right corner) - double width
+    overlayFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMRIGHT", -360, 60)
+    overlayFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -20, 10)
+    
+    -- Make it invisible but clickable
+    overlayFrame:EnableMouse(true)
+    
+    -- Add a background texture for debugging
+    local bgTexture = overlayFrame:CreateTexture(nil, "BACKGROUND")
+    bgTexture:SetAllPoints()
+    bgTexture:SetColorTexture(1, 0, 0, 0.0) -- Red, fully transparent initially
+    overlayFrame.bgTexture = bgTexture
+    
+    -- Set up mouse enter (show MicroMenu)
+    overlayFrame:SetScript("OnEnter", function(self)
+        if ExplorerMode.isActive and not self.isShowing and not ExplorerMode.microMenuCooldown then
+            AzeriteMOP:Debug("ExplorerMode: Mouse over MicroMenu area - showing")
+            
+            -- Cancel any existing fade timer
+            if ExplorerMode.microMenuFadeTimer then
+                ExplorerMode.microMenuFadeTimer:Cancel()
+            end
+            
+            -- Show all MicroMenu buttons immediately and bring them to front
+            local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+                                 "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+                                 "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
+                                 "PVPMicroButton", "MainMenuMicroButton", "StoreMicroButton", "HelpMicroButton"}
+            for _, buttonName in ipairs(microButtons) do
+                local button = _G[buttonName]
+                if button then
+                    button:Show()
+                    button:SetAlpha(1.0)
+                    button:SetFrameStrata("HIGH")
+                    button:SetFrameLevel(1000)
+                end
+            end
+            
+            -- Mark as showing
+            self.isShowing = true
+            
+            -- Set cooldown to prevent rapid triggering
+            ExplorerMode.microMenuCooldown = C_Timer.NewTimer(0.5, function()
+                ExplorerMode.microMenuCooldown = nil
+            end)
+        end
+    end)
+    
+    -- Set up mouse leave (fade out MicroMenu)
+    overlayFrame:SetScript("OnLeave", function(self)
+        if ExplorerMode.isActive and self.isShowing and not ExplorerMode.microMenuCooldown then
+            AzeriteMOP:Debug("ExplorerMode: Mouse left MicroMenu area - fading out")
+            
+            -- Cancel any existing fade timer
+            if ExplorerMode.microMenuFadeTimer then
+                ExplorerMode.microMenuFadeTimer:Cancel()
+            end
+            
+            -- Mark as not showing
+            self.isShowing = false
+            
+            -- Set cooldown to prevent rapid triggering
+            ExplorerMode.microMenuCooldown = C_Timer.NewTimer(0.5, function()
+                ExplorerMode.microMenuCooldown = nil
+            end)
+            
+            -- Fade out after 3 seconds
+            ExplorerMode.microMenuFadeTimer = C_Timer.NewTimer(3.0, function()
+                if ExplorerMode.isActive then
+                    AzeriteMOP:Debug("ExplorerMode: Fading out MicroMenu")
+                    
+                    -- Create a smooth fade animation
+                    local fadeStart = GetTime()
+                    local fadeDuration = 1.0 -- 1 second fade
+                    
+                    local fadeFrame = CreateFrame("Frame")
+                    fadeFrame:SetScript("OnUpdate", function(_, elapsed)
+                        local elapsed = GetTime() - fadeStart
+                        local progress = elapsed / fadeDuration
+                        
+                        if progress >= 1.0 then
+                            -- Fade complete, hide all MicroMenu buttons
+                            AzeriteMOP:Debug("ExplorerMode: MicroMenu fade complete, hiding")
+                            local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+                                                 "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+                                                 "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
+                                                 "PVPMicroButton", "MainMenuMicroButton", "StoreMicroButton", "HelpMicroButton"}
+                            for _, buttonName in ipairs(microButtons) do
+                                local button = _G[buttonName]
+                                if button then
+                                    button:Hide()
+                                end
+                            end
+                            fadeFrame:SetScript("OnUpdate", nil)
+                            fadeFrame:Hide()
+                        else
+                            -- Fade in progress
+                            local alpha = 1.0 - progress
+                            local microButtons = {"CharacterMicroButton", "SpellbookMicroButton", "TalentMicroButton", 
+                                                 "AchievementMicroButton", "QuestLogMicroButton", "GuildMicroButton", 
+                                                 "LFGMicroButton", "CollectionsMicroButton", "EJMicroButton", 
+                                                 "PVPMicroButton", "MainMenuMicroButton", "StoreMicroButton", "HelpMicroButton"}
+                            for _, buttonName in ipairs(microButtons) do
+                                local button = _G[buttonName]
+                                if button then
+                                    button:SetAlpha(alpha)
+                                end
+                            end
+                        end
+                    end)
+                end
+                ExplorerMode.microMenuFadeTimer = nil
+            end)
+        end
+    end)
+    
+    -- Store reference to overlay frame
+    ExplorerMode.microMenuOverlay = overlayFrame
+end
+
+function ExplorerMode:ToggleDebugFrames()
+    AzeriteMOP:Debug("ExplorerMode: ToggleDebugFrames called")
+    
+    -- Toggle WatchFrame overlay debug
+    if self.watchFrameOverlay then
+        if self.watchFrameOverlay.debugEnabled then
+            AzeriteMOP:Debug("ExplorerMode: Hiding WatchFrame debug border")
+            self.watchFrameOverlay:SetAlpha(0.0)
+            if self.watchFrameOverlay.bgTexture then
+                self.watchFrameOverlay.bgTexture:SetColorTexture(0, 1, 0, 0.0) -- Green, transparent
+            end
+            self.watchFrameOverlay.debugEnabled = false
+        else
+            AzeriteMOP:Debug("ExplorerMode: Showing WatchFrame debug border")
+            self.watchFrameOverlay:SetAlpha(0.3) -- Make it slightly visible
+            if self.watchFrameOverlay.bgTexture then
+                self.watchFrameOverlay.bgTexture:SetColorTexture(0, 1, 0, 0.3) -- Green, semi-transparent
+            end
+            self.watchFrameOverlay.debugEnabled = true
+        end
+    end
+    
+    -- Toggle MicroMenu overlay debug
+    if self.microMenuOverlay then
+        if self.microMenuOverlay.debugEnabled then
+            AzeriteMOP:Debug("ExplorerMode: Hiding MicroMenu debug border")
+            self.microMenuOverlay:SetAlpha(0.0)
+            if self.microMenuOverlay.bgTexture then
+                self.microMenuOverlay.bgTexture:SetColorTexture(1, 0, 0, 0.0) -- Red, transparent
+            end
+            self.microMenuOverlay.debugEnabled = false
+        else
+            AzeriteMOP:Debug("ExplorerMode: Showing MicroMenu debug border")
+            self.microMenuOverlay:SetAlpha(0.3) -- Make it slightly visible
+            if self.microMenuOverlay.bgTexture then
+                self.microMenuOverlay.bgTexture:SetColorTexture(1, 0, 0, 0.3) -- Red, semi-transparent
+            end
+            self.microMenuOverlay.debugEnabled = true
+        end
+    end
 end
 
 function ExplorerMode:ShowChat()
