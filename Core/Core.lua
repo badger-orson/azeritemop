@@ -11,13 +11,13 @@ local AzeriteMOP = AzeriteMOP
 Addon.AzeriteMOP = AzeriteMOP
 
 -- Debug flag for development
-AzeriteMOP.DEBUG = true
+AzeriteMOP.DEBUG = false
 
 -- Simple debug print function
 function AzeriteMOP:Debug(...)
-    if self.DEBUG then
-        print("|cFF4488FF[AzeriteMOP]|r", ...)
-    end
+    -- if self.DEBUG then
+    --     print("|cFF4488FF[AzeriteMOP]|r", ...)
+    -- end
 end
 
 -- Helper function to ensure database is properly initialized
@@ -795,7 +795,7 @@ end
 function AzeriteMOP:SetExplorerModeActive(active)
     self:EnsureDatabase()
     self.db.explorerMode.isActive = active
-    AzeriteMOP:Debug("Explorer mode active state set to: " .. tostring(active))
+    -- AzeriteMOP:Debug("Explorer mode active state set to: " .. tostring(active))
 end
 
 function AzeriteMOP:GetExplorerModeActive()
@@ -806,7 +806,7 @@ end
 function AzeriteMOP:SetExplorerModeEnabled(enabled)
     self:EnsureDatabase()
     self.db.explorerMode.enabled = enabled
-    AzeriteMOP:Debug("Explorer mode enabled state set to: " .. tostring(enabled))
+    -- AzeriteMOP:Debug("Explorer mode enabled state set to: " .. tostring(enabled))
 end
 
 function AzeriteMOP:GetExplorerModeEnabled()
