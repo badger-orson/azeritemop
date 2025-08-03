@@ -66,9 +66,6 @@ function ChatFrame:StyleSingleChatFrame(frame)
     frame:SetClampRectInsets(0, 0, 0, 0)
     frame:SetClampedToScreen(false)
     
-    -- Make chat frame more transparent (40% opacity = 60% transparent)
-    frame:SetAlpha(0.4)
-    
         -- Add chat frame background texture
     if not frame.azeriteBackground then
         local chatBg = frame:CreateTexture(nil, "BACKGROUND")
@@ -96,8 +93,8 @@ end
     if tab then
         AzeriteMOP:Debug("Styling tab for " .. name)
         
-        -- Make tab transparent to match chat frame (40% opacity = 60% transparent)
-        tab:SetAlpha(0.4)
+        -- Make tab more visible
+        tab:SetAlpha(1)
         if tab.Text then
             tab.Text:SetTextColor(1, 1, 1, 1)
         end

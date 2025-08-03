@@ -125,28 +125,34 @@ end
 function ExplorerMode:HideUI()
     -- AzeriteMOP:Debug("ExplorerMode: HideUI called")
     
-    -- Show ChatFrame1 in explorer mode
+    -- Show ChatFrame1 in explorer mode with 60% transparency
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1 in explorer mode")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1 in explorer mode with 60% transparency")
         pcall(function() 
             chatFrame1:Show()
-            chatFrame1:SetAlpha(1.0)
+            chatFrame1:SetAlpha(0.4) -- 60% transparent immediately
         end)
     else
         -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
     
-    -- Show default chat input box
+    -- Show default chat input box with 60% transparency
     local chatEditBox = _G["ChatFrame1EditBox"]
     if chatEditBox then
-        pcall(function() chatEditBox:Show() end)
+        pcall(function() 
+            chatEditBox:Show()
+            chatEditBox:SetAlpha(0.4) -- 60% transparent immediately
+        end)
     end
     
-    -- Show chat frame tab
+    -- Show chat frame tab with 60% transparency
     local chatTab = _G["ChatFrame1Tab"]
     if chatTab then
-        pcall(function() chatTab:Show() end)
+        pcall(function() 
+            chatTab:Show()
+            chatTab:SetAlpha(0.4) -- 60% transparent immediately
+        end)
     end
     
     -- Ensure ChatFrame styling is applied
@@ -195,13 +201,13 @@ end
 function ExplorerMode:ShowUI()
     -- AzeriteMOP:Debug("ExplorerMode: ShowUI called")
     
-    -- Show default chat frame and input box (same as explorer mode)
+    -- Show default chat frame and input box with 60% transparency
     local chatFrame1 = _G["ChatFrame1"]
     if chatFrame1 then
-        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1")
+        -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame1 with 60% transparency")
         pcall(function() 
             chatFrame1:Show()
-            chatFrame1:SetAlpha(1.0)
+            chatFrame1:SetAlpha(0.4) -- 60% transparent immediately
         end)
         
         -- Re-apply chat frame styling after showing
@@ -217,16 +223,22 @@ function ExplorerMode:ShowUI()
         -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 not found")
     end
     
-    -- Show default chat input box
+    -- Show default chat input box with 60% transparency
     local chatEditBox = _G["ChatFrame1EditBox"]
     if chatEditBox then
-        pcall(function() chatEditBox:Show() end)
+        pcall(function() 
+            chatEditBox:Show()
+            chatEditBox:SetAlpha(0.4) -- 60% transparent immediately
+        end)
     end
     
-    -- Show chat frame tab
+    -- Show chat frame tab with 60% transparency
     local chatTab = _G["ChatFrame1Tab"]
     if chatTab then
-        pcall(function() chatTab:Show() end)
+        pcall(function() 
+            chatTab:Show()
+            chatTab:SetAlpha(0.4) -- 60% transparent immediately
+        end)
     end
     
     -- Show quest frame (WatchFrame) and clean up overlay
@@ -238,14 +250,23 @@ function ExplorerMode:ShowUI()
             watchFrame:SetAlpha(1.0)
         end)
         
-        -- Clean up the overlay frame
-        if self.watchFrameOverlay then
-            -- AzeriteMOP:Debug("ExplorerMode: Cleaning up WatchFrame overlay")
-            pcall(function() 
-                self.watchFrameOverlay:Hide()
-                self.watchFrameOverlay = nil
-            end)
-        end
+            -- Clean up the overlay frame
+    if self.watchFrameOverlay then
+        -- AzeriteMOP:Debug("ExplorerMode: Cleaning up WatchFrame overlay")
+        pcall(function() 
+            self.watchFrameOverlay:Hide()
+            self.watchFrameOverlay = nil
+        end)
+    end
+    
+    -- Clean up chat frame keyboard frame
+    if self.chatKeyboardFrame then
+        -- AzeriteMOP:Debug("ExplorerMode: Cleaning up ChatFrame keyboard frame")
+        pcall(function() 
+            self.chatKeyboardFrame:Hide()
+            self.chatKeyboardFrame = nil
+        end)
+    end
     else
         -- AzeriteMOP:Debug("ExplorerMode: WatchFrame not found")
     end
@@ -292,15 +313,6 @@ function ExplorerMode:ShowUI()
         pcall(function() 
             self.chatKeyboardFrame:Hide()
             self.chatKeyboardFrame = nil
-        end)
-    end
-    
-    -- Clean up the persistent chat hiding frame
-    if self.chatHideFrame then
-        -- AzeriteMOP:Debug("ExplorerMode: Cleaning up persistent chat hiding frame")
-        pcall(function() 
-            self.chatHideFrame:Hide()
-            self.chatHideFrame = nil
         end)
     end
 end
@@ -546,51 +558,8 @@ function ExplorerMode:SetupMicroMenuMouseOver()
     ExplorerMode.microMenuOverlay = overlayFrame
 end
 
-function ExplorerMode:SetupPersistentChatHiding()
-    -- AzeriteMOP:Debug("ExplorerMode: Setting up persistent chat hiding")
-    
-    -- Create a frame that continuously hides unwanted chat elements
-    local hideFrame = CreateFrame("Frame", "ExplorerModeChatHideFrame", UIParent)
-    hideFrame:SetScript("OnUpdate", function()
-        if ExplorerMode:GetIsActive() then
-            -- Hide all chat frames except ChatFrame1
-            for i = 2, NUM_CHAT_WINDOWS do
-                local otherFrame = _G["ChatFrame" .. i]
-                if otherFrame then
-                    otherFrame:Hide()
-                end
-            end
-            
-            -- Hide all chat tabs except ChatFrame1Tab
-            for i = 2, NUM_CHAT_WINDOWS do
-                local tab = _G["ChatFrame" .. i .. "Tab"]
-                if tab then
-                    tab:Hide()
-                end
-            end
-            
-            -- Hide voice chat elements
-            local voiceChatFrame = _G["VoiceChatFrame"]
-            if voiceChatFrame then
-                voiceChatFrame:Hide()
-            end
-            
-            -- Hide any other voice-related elements
-            local voiceElements = {"VoiceChatButton", "VoiceChatToggleButton"}
-            for _, elementName in ipairs(voiceElements) do
-                local element = _G[elementName]
-                if element then
-                    element:Hide()
-                end
-            end
-        end
-    end)
-    
-    ExplorerMode.chatHideFrame = hideFrame
-end
-
 function ExplorerMode:SetupChatFrameFadeOut()
-    -- AzeriteMOP:Debug("ExplorerMode: Setting up ChatFrame1 fade-out")
+    -- AzeriteMOP:Debug("ExplorerMode: Setting up ChatFrame1 fade-out (no mouse over)")
     
     local chatFrame1 = _G["ChatFrame1"]
     if not chatFrame1 then
@@ -598,148 +567,19 @@ function ExplorerMode:SetupChatFrameFadeOut()
         return
     end
     
-    -- Create an invisible overlay frame in the ChatFrame1 area
-    local overlayFrame = CreateFrame("Frame", "ExplorerModeChatFrameOverlay", UIParent)
-    overlayFrame:SetFrameStrata("MEDIUM")
-    overlayFrame:SetFrameLevel(chatFrame1:GetFrameLevel() - 1)
-    
-    -- Position the overlay to match ChatFrame1 area (bottom-left)
-    overlayFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", 20, 150)
-    overlayFrame:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -400, 20)
-    
-    -- Make it invisible but clickable
-    overlayFrame:EnableMouse(true)
-    
-    -- Add a background texture for debugging
-    local bgTexture = overlayFrame:CreateTexture(nil, "BACKGROUND")
-    bgTexture:SetAllPoints()
-    bgTexture:SetColorTexture(0, 0, 1, 0.0) -- Blue, fully transparent initially
-    overlayFrame.bgTexture = bgTexture
-    
-    -- Set up mouse enter (show ChatFrame1)
-    overlayFrame:SetScript("OnEnter", function(self)
-        -- AzeriteMOP:Debug("ExplorerMode: Mouse entered ChatFrame1 overlay area")
-        local isActive = ExplorerMode:GetIsActive()
-        
-        if isActive and not self.isShowing and not ExplorerMode.chatFrameCooldown then
-            -- AzeriteMOP:Debug("ExplorerMode: Mouse over ChatFrame1 area - showing")
-            
-            -- Cancel any existing fade timer
-            if ExplorerMode.chatFrameFadeTimer then
-                ExplorerMode.chatFrameFadeTimer:Cancel()
-            end
-            
-            -- Show ChatFrame1 immediately using the new function
-            ExplorerMode:ShowChatFrame()
-            
-            -- Mark as showing
-            self.isShowing = true
-            
-            -- Set cooldown to prevent rapid triggering
-            ExplorerMode.chatFrameCooldown = C_Timer.NewTimer(0.5, function()
-                ExplorerMode.chatFrameCooldown = nil
-            end)
-        end
-    end)
-    
-    -- Set up mouse leave (fade out ChatFrame1)
-    overlayFrame:SetScript("OnLeave", function(self)
-        if ExplorerMode:GetIsActive() and self.isShowing and not ExplorerMode.chatFrameCooldown then
-            -- AzeriteMOP:Debug("ExplorerMode: Mouse left ChatFrame1 area - fading out")
-            
-            -- Cancel any existing fade timer
-            if ExplorerMode.chatFrameFadeTimer then
-                ExplorerMode.chatFrameFadeTimer:Cancel()
-            end
-            
-            -- Mark as not showing
-            self.isShowing = false
-            
-            -- Set cooldown to prevent rapid triggering
-            ExplorerMode.chatFrameCooldown = C_Timer.NewTimer(0.5, function()
-                ExplorerMode.chatFrameCooldown = nil
-            end)
-            
-            -- Fade out after 2 seconds (shorter than WatchFrame for chat)
-            ExplorerMode.chatFrameFadeTimer = C_Timer.NewTimer(2.0, function()
-                if ExplorerMode:GetIsActive() then
-                    -- AzeriteMOP:Debug("ExplorerMode: Fading out ChatFrame1")
-                    
-                    -- Create a smooth fade animation
-                    local fadeStart = GetTime()
-                    local fadeDuration = 1.0 -- 1 second fade
-                    
-                    local fadeFrame = CreateFrame("Frame")
-                    fadeFrame:SetScript("OnUpdate", function(_, elapsed)
-                        local elapsed = GetTime() - fadeStart
-                        local progress = elapsed / fadeDuration
-                        
-                        if progress >= 1.0 then
-                            -- Fade complete, hide ChatFrame1 and all tabs
-                            -- AzeriteMOP:Debug("ExplorerMode: ChatFrame1 fade complete, hiding")
-                            chatFrame1:Hide()
-                            local chatEditBox = _G["ChatFrame1EditBox"]
-                            if chatEditBox then chatEditBox:Hide() end
-                            
-                            -- Hide all chat tabs
-                            for i = 1, NUM_CHAT_WINDOWS do
-                                local tab = _G["ChatFrame" .. i .. "Tab"]
-                                if tab then
-                                    tab:Hide()
-                                end
-                            end
-                            
-                            -- Hide all other chat frames except ChatFrame1
-                            for i = 2, NUM_CHAT_WINDOWS do
-                                local otherFrame = _G["ChatFrame" .. i]
-                                if otherFrame then
-                                    otherFrame:Hide()
-                                end
-                            end
-                            
-                            fadeFrame:SetScript("OnUpdate", nil)
-                            fadeFrame:Hide()
-                        else
-                            -- Fade in progress
-                            local baseAlpha = 0.4 -- 40% opacity when visible
-                            local alpha = baseAlpha - (baseAlpha * progress)
-                            chatFrame1:SetAlpha(alpha)
-                            if chatEditBox then chatEditBox:SetAlpha(alpha) end
-                            
-                            -- Fade only ChatFrame1 tab, hide others
-                            for i = 1, NUM_CHAT_WINDOWS do
-                                local tab = _G["ChatFrame" .. i .. "Tab"]
-                                if tab then
-                                    if i == 1 then
-                                        local baseTabAlpha = 0.4 -- 40% opacity when visible
-                                        local tabAlpha = baseTabAlpha - (baseTabAlpha * progress)
-                                        tab:SetAlpha(tabAlpha)
-                                    else
-                                        tab:Hide()
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-                ExplorerMode.chatFrameFadeTimer = nil
-            end)
-        end
-    end)
-    
-    -- Store reference to overlay frame
-    ExplorerMode.chatFrameOverlay = overlayFrame
+    -- Set up edit box transparency hooks
+    local chatEditBox = _G["ChatFrame1EditBox"]
+    if chatEditBox then
+        self:SetupEditBoxTransparency(chatEditBox)
+    end
     
     -- Set up keyboard detection for Enter key
     self:SetupChatFrameKeyboard()
     
-    -- Set up persistent chat hiding
-    self:SetupPersistentChatHiding()
-    
-    -- Initial fade out after a delay
+    -- Initial fade to 60% transparent after a delay
     C_Timer.After(3.0, function()
         if ExplorerMode:GetIsActive() then
-            -- AzeriteMOP:Debug("ExplorerMode: Initial ChatFrame1 fade out")
+            -- AzeriteMOP:Debug("ExplorerMode: Initial ChatFrame1 fade to 60% transparent")
             self:FadeOutChatFrame()
         end
     end)
@@ -786,23 +626,39 @@ function ExplorerMode:ToggleDebugFrames()
         end
     end
     
-    -- Toggle ChatFrame overlay debug
-    if self.chatFrameOverlay then
-        if self.chatFrameOverlay.debugEnabled then
-            -- AzeriteMOP:Debug("ExplorerMode: Hiding ChatFrame debug border")
-            self.chatFrameOverlay:SetAlpha(0.0)
-            if self.chatFrameOverlay.bgTexture then
-                self.chatFrameOverlay.bgTexture:SetColorTexture(0, 0, 1, 0.0) -- Blue, transparent
+    -- ChatFrame no longer has overlay (removed mouse over events)
+end
+
+function ExplorerMode:SetupEditBoxTransparency(chatEditBox)
+    if not chatEditBox then return end
+    
+    -- Hook the edit box to maintain 60% transparency even when focused
+    if not chatEditBox.azeriteTransparencyHooked then
+        chatEditBox:HookScript("OnEditFocusGained", function(self)
+            -- AzeriteMOP:Debug("ExplorerMode: Edit box focused - maintaining 60% transparency")
+            self:SetAlpha(0.4) -- Keep 60% transparent even when focused
+        end)
+        
+        chatEditBox:HookScript("OnEditFocusLost", function(self)
+            -- AzeriteMOP:Debug("ExplorerMode: Edit box unfocused - maintaining 60% transparency")
+            self:SetAlpha(0.4) -- Keep 60% transparent even when unfocused
+        end)
+        
+        -- Add OnUpdate hook to continuously enforce transparency
+        chatEditBox:HookScript("OnUpdate", function(self)
+            if self:GetAlpha() > 0.4 then
+                self:SetAlpha(0.4) -- Force 60% transparency
             end
-            self.chatFrameOverlay.debugEnabled = false
-        else
-            -- AzeriteMOP:Debug("ExplorerMode: Showing ChatFrame debug border")
-            self.chatFrameOverlay:SetAlpha(0.3) -- Make it slightly visible
-            if self.chatFrameOverlay.bgTexture then
-                self.chatFrameOverlay.bgTexture:SetColorTexture(0, 0, 1, 0.3) -- Blue, semi-transparent
+        end)
+        
+        -- Also hook OnTextChanged to ensure transparency during typing
+        chatEditBox:HookScript("OnTextChanged", function(self)
+            if self:GetAlpha() > 0.4 then
+                self:SetAlpha(0.4) -- Force 60% transparency
             end
-            self.chatFrameOverlay.debugEnabled = true
-        end
+        end)
+        
+        chatEditBox.azeriteTransparencyHooked = true
     end
 end 
 
@@ -835,43 +691,43 @@ end
 function ExplorerMode:ShowChatFrame()
     local chatFrame1 = _G["ChatFrame1"]
     local chatEditBox = _G["ChatFrame1EditBox"]
+    local chatTab = _G["ChatFrame1Tab"]
     
     if chatFrame1 then
         chatFrame1:Show()
-        chatFrame1:SetAlpha(0.4) -- 40% opacity (60% transparent)
+        chatFrame1:SetAlpha(0.4) -- Always 60% transparent
         chatFrame1:SetFrameStrata("HIGH")
         chatFrame1:SetFrameLevel(1000)
     end
     
     if chatEditBox then
         chatEditBox:Show()
-        chatEditBox:SetAlpha(1.0)
-    end
-    
-    -- Show only ChatFrame1 tab, hide all others
-    for i = 1, NUM_CHAT_WINDOWS do
-        local tab = _G["ChatFrame" .. i .. "Tab"]
-        if tab then
-            if i == 1 then
-                -- Show only ChatFrame1Tab with transparency
-                tab:Show()
-                tab:SetAlpha(0.4) -- 40% opacity (60% transparent)
-            else
-                -- Hide all other tabs
-                tab:Hide()
+        chatEditBox:SetAlpha(0.4) -- Always 60% transparent
+        
+        -- Setup transparency hooks
+        self:SetupEditBoxTransparency(chatEditBox)
+        
+        -- Force transparency after a short delay to override any WoW defaults
+        C_Timer.After(0.1, function()
+            if chatEditBox then
+                chatEditBox:SetAlpha(0.4) -- Force 60% transparency
             end
-        end
+        end)
+        
+        -- Also force transparency after a longer delay
+        C_Timer.After(0.5, function()
+            if chatEditBox then
+                chatEditBox:SetAlpha(0.4) -- Force 60% transparency
+            end
+        end)
     end
     
-    -- Hide all other chat frames except ChatFrame1
-    for i = 2, NUM_CHAT_WINDOWS do
-        local otherFrame = _G["ChatFrame" .. i]
-        if otherFrame then
-            otherFrame:Hide()
-        end
+    if chatTab then
+        chatTab:Show()
+        chatTab:SetAlpha(0.4) -- Always 60% transparent
     end
     
-    -- Mark overlay as showing
+    -- Mark overlay as showing (if it exists)
     if ExplorerMode.chatFrameOverlay then
         ExplorerMode.chatFrameOverlay.isShowing = true
     end
@@ -880,29 +736,18 @@ end
 function ExplorerMode:FadeOutChatFrame()
     local chatFrame1 = _G["ChatFrame1"]
     local chatEditBox = _G["ChatFrame1EditBox"]
+    local chatTab = _G["ChatFrame1Tab"]
     
     if chatFrame1 then
-        chatFrame1:SetAlpha(0.0)
+        chatFrame1:SetAlpha(0.4) -- 60% transparent (40% opacity)
     end
     
     if chatEditBox then
-        chatEditBox:SetAlpha(0.0)
+        chatEditBox:SetAlpha(0.4) -- 60% transparent
     end
     
-    -- Hide all chat tabs
-    for i = 1, NUM_CHAT_WINDOWS do
-        local tab = _G["ChatFrame" .. i .. "Tab"]
-        if tab then
-            tab:Hide()
-        end
-    end
-    
-    -- Hide all other chat frames except ChatFrame1
-    for i = 2, NUM_CHAT_WINDOWS do
-        local otherFrame = _G["ChatFrame" .. i]
-        if otherFrame then
-            otherFrame:Hide()
-        end
+    if chatTab then
+        chatTab:SetAlpha(0.4) -- 60% transparent
     end
     
     -- Mark overlay as not showing
