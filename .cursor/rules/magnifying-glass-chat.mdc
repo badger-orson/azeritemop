@@ -1,0 +1,42 @@
+# Magnifying Glass Chat Frame Implementation
+
+The [ChatFrame.lua](mdc:Modules/ChatFrame/ChatFrame.lua) module implements a unique circular magnifying glass chat interface.
+
+## 🔍 Core Concept
+- **Circular orb design** using `orb_case_hi.tga` texture
+- **Dynamic text scaling** based on distance from center
+- **Magnification effect**: Small text at edges → Large text in center
+- **Circular text clipping** using `actionbutton-mask-circular.tga`
+
+## 🎯 Key Components
+
+### Frame Structure (Bottom to Top Layers)
+1. **Text Container** (`chatFrame:GetFrameLevel() - 2`) - Behind everything
+2. **Chat Text FontStrings** (`"BACKGROUND"` draw layer) - Behind mask  
+3. **Scroll Frame** - Contains and clips text
+4. **Orb Background** - Main circular texture
+5. **Glass Lens Effect** (`"OVERLAY"` layer 2) - Top glass effect
+
+### Magnification Algorithm
+```lua
+-- Inverted scaling: smaller at edges, larger at center
+local normalizedDistance = math.min(distanceFromCenter / maxDistance, 1)
+local scale = 0.6 + (1.0 - normalizedDistance) * 0.8  -- 0.6 to 1.4 scale range
+fontString:SetScale(scale)
+```
+
+## 🎨 Visual Effects
+- **Orb texture tinting**: Light colors (0.8, 0.8, 0.9) for natural look
+- **Glass lens**: Subtle white additive blend for glass effect
+- **Circular masking**: `SetClipsChildren(true)` for text boundaries
+- **Alpha fading**: Text fades more at edges for depth
+
+## ⚠️ MoP Classic Considerations
+- No `AddMaskTexture()` - Using `SetClipsChildren()` instead
+- Manual frame layering with `SetFrameLevel()`
+- Custom timer implementation for fade effects
+- Text scaling via `SetScale()` on individual FontStrings
+description:
+globs:
+alwaysApply: false
+---

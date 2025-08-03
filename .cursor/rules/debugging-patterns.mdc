@@ -1,0 +1,48 @@
+# Debugging & Development Patterns
+
+## 🐛 Debugging Approach Used
+All debug statements in [Core.lua](mdc:Core/Core.lua) and modules are **commented out** to prevent chat activation issues that could interfere with Explorer Mode.
+
+```lua
+-- Example pattern used throughout codebase:
+function AzeriteMOP:Debug(...)
+    -- if self.DEBUG then
+    --     print("|cFF4488FF[AzeriteMOP]|r", ...)
+    -- end
+end
+
+-- Usage in functions:
+-- self:Debug("Database initialized successfully!")
+```
+
+## ✅ Safe Debugging Methods
+- Use `/reload` for testing changes
+- Leverage slash commands for runtime testing (`/az testexplorer`, `/az checkframes`)
+- Frame inspection: Check `frame:IsShown()`, `frame:GetFrameLevel()`
+- Manual triggering of module functions for testing
+
+## 🎯 Error Handling Patterns
+```lua
+-- Safe frame access
+if self.PlayerFrame and self.PlayerFrame.frame then
+    self.PlayerFrame.frame:Show()
+else
+    print("PlayerFrame not found")
+end
+
+-- Compatibility checks
+if not AzeriteMOP:IsMoPClassic() then
+    error("This addon requires MoP Classic!")
+end
+```
+
+## 📋 Testing Checklist
+- Test with `/reload` after changes
+- Verify Explorer Mode activation/deactivation
+- Check chat frame visibility and functionality  
+- Test magnification effect with scroll wheel
+- Validate whisper suggestions appear correctly
+description:
+globs:
+alwaysApply: false
+---

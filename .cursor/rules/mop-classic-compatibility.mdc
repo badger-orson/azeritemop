@@ -1,0 +1,40 @@
+# MoP Classic (5.4.x) API Compatibility Rules
+
+## ❌ APIs NOT Available in MoP Classic
+- `C_Timer.NewTimer()` / `C_Timer.After()` - Use `CreateFrame("Frame"):SetScript("OnUpdate")` instead
+- `SetBackdrop()` on all frame types - Limited support, avoid or use alternatives
+- `AddMaskTexture()` / `CreateMaskTexture()` - Not supported, use `SetClipsChildren(true)` instead
+- Modern backdrop templates like `BackdropTemplate`
+
+## ✅ Use These Alternatives
+```lua
+-- Instead of C_Timer.After(5, function)
+local timer = CreateFrame("Frame")
+local endTime = GetTime() + 5.0
+timer:SetScript("OnUpdate", function(self, elapsed)
+    if GetTime() >= endTime then
+        -- your code here
+        timer:SetScript("OnUpdate", nil)
+        timer:Hide()
+    end
+end)
+
+-- Instead of AddMaskTexture()
+frame:SetClipsChildren(true)
+-- Size and position content to stay within bounds
+
+-- For text layering
+fontString = frame:CreateFontString(nil, "BACKGROUND", "ChatFontNormal")
+```
+
+## 🎯 Safe MoP Classic Patterns
+- `CreateFrame()` for all UI elements
+- `SetVertexColor()` for texture tinting
+- `SetDrawLayer()` for proper layering
+- `SetFrameLevel()` for z-ordering
+- Manual timer management with `OnUpdate`
+- Texture coordinate manipulation with `SetTexCoord()`
+description:
+globs:
+alwaysApply: false
+---

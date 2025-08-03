@@ -15,5 +15,8 @@ Modules\PlayerFrame\PlayerFrame.lua
 # Target unit frame module
 Modules\TargetFrame\TargetFrame.lua
 
+# Custom Chat Frame module
+Modules\ChatFrame\ChatFrame.lua
+
 # Explorer Mode module
 Modules\ExplorerMode\ExplorerMode.lua

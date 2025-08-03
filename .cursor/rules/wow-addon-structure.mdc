@@ -1,0 +1,28 @@
+# AzeriteMOP WoW Addon Project Structure
+
+This is a World of Warcraft Classic (MoP 5.4.x) addon with a modular architecture.
+
+## Core Files
+- [AzeriteMOP.toc](mdc:AzeriteMOP.toc) - Addon manifest defining load order and metadata
+- [Core/Core.lua](mdc:Core/Core.lua) - Main addon framework with initialization, slash commands, and database management
+
+## Module Architecture
+Each module is self-contained in `Modules/[ModuleName]/[ModuleName].lua`:
+- [Modules/PlayerFrame/PlayerFrame.lua](mdc:Modules/PlayerFrame/PlayerFrame.lua) - Custom player unit frame
+- [Modules/TargetFrame/TargetFrame.lua](mdc:Modules/TargetFrame/TargetFrame.lua) - Custom target unit frame  
+- [Modules/ExplorerMode/ExplorerMode.lua](mdc:Modules/ExplorerMode/ExplorerMode.lua) - UI hiding system for immersive gameplay
+- [Modules/ChatFrame/ChatFrame.lua](mdc:Modules/ChatFrame/ChatFrame.lua) - **Unique magnifying glass chat interface**
+
+## Key Patterns
+- All modules use `AzeriteMOP.ModuleName = {}` namespace pattern
+- Modules have `Initialize()` method called from Core
+- Database stored in `AzeriteMOPDB` saved variable
+- MoP Classic compatibility required (no modern WoW APIs)
+- Extensive use of `CreateFrame()` for custom UI elements
+
+## Textures
+Custom textures stored in `Textures/` directory, referenced as `Interface\\AddOns\\AzeriteMOP\\Textures\\filename.tga`
+description:
+globs:
+alwaysApply: false
+---

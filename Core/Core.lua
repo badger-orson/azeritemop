@@ -81,6 +81,25 @@ function AzeriteMOP:EnsureDatabase()
         }
     end
     
+    if not self.db.chatFrame then
+        -- self:Debug("Creating chatFrame in database")
+        self.db.chatFrame = {
+            enabled = true,
+            fade = true,
+            editboxHide = true,
+            addTimestamp = false,
+            numScrollMessages = 3,
+            scrollDownInterval = 0,
+            maxCopyLines = 100,
+            showTimestamps = false,
+            hideEditBox = true,
+            fadeChat = true,
+            showEmojis = false,
+            showURLs = true,
+            showChatBubbles = true
+        }
+    end
+    
     -- self:Debug("EnsureDatabase complete - playerFrame: " .. tostring(self.db.playerFrame ~= nil) .. ", targetFrame: " .. tostring(self.db.targetFrame ~= nil) .. ", explorerMode: " .. tostring(self.db.explorerMode ~= nil))
 end
 
@@ -168,6 +187,12 @@ function AzeriteMOP:Initialize()
         -- self:Debug("TargetFrame module not found!")
     end
     
+    if self.ChatFrame then
+        self.ChatFrame:Initialize()
+    else
+        -- self:Debug("ChatFrame module not found!")
+    end
+    
     if self.ExplorerMode then
         self.ExplorerMode:Initialize()
     else
@@ -178,6 +203,72 @@ function AzeriteMOP:Initialize()
     self:SetupSlashCommands()
     
     -- self:Debug("AzeriteMOP initialized successfully!")
+end
+
+-- Helper functions for ChatFrame module
+function AzeriteMOP:RGBToHex(r, g, b)
+    return format("|cff%02x%02x%02x", r*255, g*255, b*255)
+end
+
+function AzeriteMOP:StripString(str)
+    if not str then return "" end
+    str = gsub(str, "|c%x%x%x%x%x%x%x%x", "") -- Remove color codes
+    str = gsub(str, "|r", "") -- Remove reset codes
+    str = gsub(str, "|H.-|h", "") -- Remove hyperlink codes
+    str = gsub(str, "|h", "") -- Remove hyperlink end codes
+    str = gsub(str, "|T.-|t", "") -- Remove texture codes
+    str = gsub(str, "|A.-|a", "") -- Remove atlas codes
+    return str
+end
+
+function AzeriteMOP:EscapeString(str)
+    if not str then return "" end
+    str = gsub(str, "%%", "%%%%")
+    str = gsub(str, "%(", "%%(")
+    str = gsub(str, "%)", "%%)")
+    str = gsub(str, "%.", "%%.")
+    str = gsub(str, "%+", "%%+")
+    str = gsub(str, "%-", "%%-")
+    str = gsub(str, "%*", "%%*")
+    str = gsub(str, "%?", "%%?")
+    str = gsub(str, "%[", "%%[")
+    str = gsub(str, "%]", "%%]")
+    str = gsub(str, "%^", "%%^")
+    str = gsub(str, "%$", "%%$")
+    return str
+end
+
+-- Timer function for Classic compatibility
+function AzeriteMOP:ScheduleTimer(func, delay)
+    if C_Timer and C_Timer.NewTimer then
+        return C_Timer.NewTimer(delay, func)
+    else
+        -- Fallback for Classic using older API
+        local timer = {}
+        timer.func = func
+        timer.delay = delay
+        timer.startTime = GetTime()
+        
+        timer.Cancel = function(self)
+            self.cancelled = true
+        end
+        
+        -- Create a frame to handle the timer
+        local frame = CreateFrame("Frame")
+        frame:SetScript("OnUpdate", function(self, elapsed)
+            if timer.cancelled then
+                self:SetScript("OnUpdate", nil)
+                return
+            end
+            
+            if GetTime() - timer.startTime >= timer.delay then
+                timer.func()
+                self:SetScript("OnUpdate", nil)
+            end
+        end)
+        
+        return timer
+    end
 end
 
 -- Slash command handler
@@ -535,6 +626,201 @@ function AzeriteMOP:HandleSlashCommand(msg)
         else
             print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPTargetFrame not found")
         end
+    elseif command == "chat" then
+        local subCommand = string.lower(args[2] or "")
+        if subCommand == "toggle" then
+            if self.ChatFrame then
+                self.ChatFrame:Toggle()
+                print("|cFF4488FF[AzeriteMOP]|r Chat frame toggled")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame module not found!")
+            end
+        elseif subCommand == "copy" then
+            if self.ChatFrame then
+                ShowCopyChatFrame(ChatFrame1)
+                print("|cFF4488FF[AzeriteMOP]|r Copy chat frame opened")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame module not found!")
+            end
+        elseif subCommand == "settings" then
+            if self.db and self.db.chatFrame then
+                print("|cFF4488FF[AzeriteMOP]|r Chat Frame Settings:")
+                print("  Show Timestamps: " .. tostring(self.db.chatFrame.showTimestamps))
+                print("  Hide Edit Box: " .. tostring(self.db.chatFrame.hideEditBox))
+                print("  Fade Chat: " .. tostring(self.db.chatFrame.fadeChat))
+                print("  Show Emojis: " .. tostring(self.db.chatFrame.showEmojis))
+                print("  Show URLs: " .. tostring(self.db.chatFrame.showURLs))
+                print("  Show Chat Bubbles: " .. tostring(self.db.chatFrame.showChatBubbles))
+                print("  Max Copy Lines: " .. tostring(self.db.chatFrame.maxCopyLines))
+            else
+                print("|cFF4488FF[AzeriteMOP]|r Chat frame settings not found")
+            end
+        elseif subCommand == "show" then
+            -- Force show all chat frames
+            for i = 1, 10 do
+                local frame = _G["ChatFrame" .. i]
+                if frame then
+                    frame:Show()
+                    frame:SetAlpha(1.0)
+                    print("|cFF4488FF[AzeriteMOP]|r Showing ChatFrame" .. i)
+                end
+            end
+            print("|cFF4488FF[AzeriteMOP]|r All chat frames should now be visible")
+        elseif subCommand == "test" then
+            -- Send a test message
+            if ChatFrame1 then
+                ChatFrame1:AddMessage("|cFF4488FF[AzeriteMOP]|r This is a test message from AzeriteMOP!")
+                print("|cFF4488FF[AzeriteMOP]|r Test message sent to chat")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame1 not found")
+            end
+        elseif subCommand == "check" then
+            -- Check chat frame status
+            print("|cFF4488FF[AzeriteMOP]|r Chat Frame Status:")
+            for i = 1, 5 do
+                local frame = _G["ChatFrame" .. i]
+                if frame then
+                    local isShown = frame:IsShown()
+                    local alpha = frame:GetAlpha()
+                    local background = _G["ChatFrame" .. i .. "Background"]
+                    local hasBackground = background and background:GetTexture()
+                    print("  ChatFrame" .. i .. ": Shown=" .. tostring(isShown) .. ", Alpha=" .. tostring(alpha) .. ", Background=" .. tostring(hasBackground))
+                else
+                    print("  ChatFrame" .. i .. ": Not found")
+                end
+            end
+            
+            -- Check ExplorerMode status
+            if self.ExplorerMode then
+                local isActive = self.ExplorerMode:GetIsActive()
+                print("  ExplorerMode Active: " .. tostring(isActive))
+            else
+                print("  ExplorerMode: Not found")
+            end
+        elseif subCommand == "refresh" then
+            -- Force refresh chat backgrounds
+            if self.ChatFrame then
+                for i = 1, 10 do
+                    local frame = _G["ChatFrame" .. i]
+                    if frame then
+                        local background = _G["ChatFrame" .. i .. "Background"]
+                        if background then
+                            local texturePath = "Interface/AddOns/AzeriteMOP/Textures/chat/chatframebackground.tga"
+                            background:SetTexture(texturePath)
+                            background:SetVertexColor(1, 1, 1, 1)
+                            background:Show()
+                            
+                            local loadedTexture = background:GetTexture()
+                            print("|cFF4488FF[AzeriteMOP]|r Refreshed background for ChatFrame" .. i .. " - Loaded: " .. tostring(loadedTexture))
+                        else
+                            print("|cFF4488FF[AzeriteMOP]|r No background found for ChatFrame" .. i)
+                        end
+                    end
+                end
+                print("|cFF4488FF[AzeriteMOP]|r Chat backgrounds refreshed")
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame module not found")
+            end
+        elseif subCommand == "testtexture" then
+            -- Test texture loading directly
+            local testFrame = CreateFrame("Frame", "AzeriteMOPTestTexture", UIParent)
+            testFrame:SetSize(100, 100)
+            testFrame:SetPoint("CENTER")
+            
+            local testTexture = testFrame:CreateTexture(nil, "ARTWORK")
+            testTexture:SetAllPoints()
+            testTexture:SetTexture("Interface/AddOns/AzeriteMOP/Textures/chat/chatframebackground.tga")
+            
+            local loadedTexture = testTexture:GetTexture()
+            print("|cFF4488FF[AzeriteMOP]|r Test texture loaded: " .. tostring(loadedTexture))
+            
+            if loadedTexture and loadedTexture ~= "" then
+                print("|cFF4488FF[AzeriteMOP]|r Texture loading successful!")
+                testFrame:Show()
+            else
+                print("|cFF4488FF[AzeriteMOP]|r Texture loading failed!")
+                testFrame:Hide()
+            end
+        elseif subCommand == "applychat" then
+            -- Directly apply texture to ChatFrame1
+            if ChatFrame1 then
+                print("|cFF4488FF[AzeriteMOP]|r Applying texture directly to ChatFrame1")
+                
+                -- Check if background already exists
+                local background = _G["ChatFrame1Background"]
+                if not background then
+                    print("|cFF4488FF[AzeriteMOP]|r Creating new background for ChatFrame1")
+                    background = ChatFrame1:CreateTexture("ChatFrame1Background", "BACKGROUND", nil, -1)
+                    background:SetAllPoints()
+                else
+                    print("|cFF4488FF[AzeriteMOP]|r Found existing background for ChatFrame1")
+                end
+                
+                -- Apply texture
+                background:SetTexture("Interface/AddOns/AzeriteMOP/Textures/chat/chatframebackground.tga")
+                background:SetVertexColor(1, 1, 1, 1)
+                background:SetDrawLayer("BACKGROUND", -1)
+                background:Show()
+                
+                -- Verify texture was applied
+                local loadedTexture = background:GetTexture()
+                print("|cFF4488FF[AzeriteMOP]|r Background texture loaded: " .. tostring(loadedTexture))
+                
+                if loadedTexture and loadedTexture ~= "" then
+                    print("|cFF4488FF[AzeriteMOP]|r Successfully applied background to ChatFrame1")
+                else
+                                    print("|cFF4488FF[AzeriteMOP]|r WARNING: Background texture failed to load")
+            end
+        else
+            print("|cFF4488FF[AzeriteMOP]|r ChatFrame1 not found")
+        end
+            elseif subCommand == "debugchat" then
+            -- Debug ChatFrame1 structure
+            if ChatFrame1 then
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame1 Debug Info:")
+                print("  Name: " .. ChatFrame1:GetName())
+                print("  Shown: " .. tostring(ChatFrame1:IsShown()))
+                print("  Alpha: " .. tostring(ChatFrame1:GetAlpha()))
+                print("  Frame Level: " .. tostring(ChatFrame1:GetFrameLevel()))
+                
+                -- Check for background elements
+                local regions = {ChatFrame1:GetRegions()}
+                print("  Regions found: " .. #regions)
+                for i, region in ipairs(regions) do
+                    if region:IsObjectType("Texture") then
+                        print("    Region " .. i .. ": Texture - " .. tostring(region:GetTexture()))
+                    else
+                        print("    Region " .. i .. ": " .. region:GetObjectType())
+                    end
+                end
+                
+                -- Check specific background names
+                local backgroundNames = {"Background", "BackgroundTexture", "BackgroundFrame", "Backdrop"}
+                for _, name in ipairs(backgroundNames) do
+                    local element = _G["ChatFrame1" .. name]
+                    if element then
+                        print("  Found " .. name .. ": " .. tostring(element:GetTexture()))
+                    else
+                        print("  " .. name .. ": Not found")
+                    end
+                end
+            else
+                print("|cFF4488FF[AzeriteMOP]|r ChatFrame1 not found")
+            end
+
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Chat commands:")
+            print("  /az chat toggle - Toggle custom chat frame")
+            print("  /az chat copy - Open copy chat window")
+            print("  /az chat settings - Show chat frame settings")
+            print("  /az chat show - Force show all chat frames")
+            print("  /az chat test - Send test message to chat")
+            print("  /az chat check - Check chat frame status")
+            print("  /az chat refresh - Force refresh chat backgrounds")
+            print("  /az chat testtexture - Test texture loading")
+            print("  /az chat applychat - Apply texture directly to ChatFrame1")
+            print("  /az chat debugchat - Debug ChatFrame1 structure")
+        end
     else
         self:ShowHelp()
     end
@@ -751,6 +1037,9 @@ function AzeriteMOP:ShowHelp()
     print("  /az checkframes - Check frame status")
     print("  /az ex on - Enable explorer mode (manual control)")
     print("  /az ex off - Disable explorer mode (manual control)")
+    print("  /az chat toggle - Toggle custom chat frame")
+    print("  /az chat copy - Open copy chat window")
+    print("  /az chat settings - Show chat frame settings")
     print("  /az help - Show this help")
     print("")
     print("Examples:")
