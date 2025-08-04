@@ -11,13 +11,13 @@ local AzeriteMOP = AzeriteMOP
 Addon.AzeriteMOP = AzeriteMOP
 
 -- Debug flag for development
-AzeriteMOP.DEBUG = false
+AzeriteMOP.DEBUG = true
 
 -- Simple debug print function
 function AzeriteMOP:Debug(...)
-    -- if self.DEBUG then
-    --     print("|cFF4488FF[AzeriteMOP]|r", ...)
-    -- end
+    if self.DEBUG then
+        print("|cFF4488FF[AzeriteMOP]|r", ...)
+    end
 end
 
 -- Helper function to ensure database is properly initialized
@@ -100,6 +100,27 @@ function AzeriteMOP:EnsureDatabase()
         }
     end
     
+    if not self.db.nameplate then
+        -- self:Debug("Creating nameplate in database")
+        self.db.nameplate = {
+            enabled = true,
+            scale = 1.0,
+            width = 120,
+            height = 12,
+            showCastbar = true,
+            showLevel = true,
+            showName = true,
+            classColors = true,
+            threatColors = true,
+            hideBlizzard = true,
+            fontSize = 10,
+            healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
+            castTexture = "Interface\\TargetingFrame\\UI-StatusBar"
+        }
+    end
+    
+
+    
     -- self:Debug("EnsureDatabase complete - playerFrame: " .. tostring(self.db.playerFrame ~= nil) .. ", targetFrame: " .. tostring(self.db.targetFrame ~= nil) .. ", explorerMode: " .. tostring(self.db.explorerMode ~= nil))
 end
 
@@ -109,6 +130,15 @@ AzeriteMOP.eventFrame = CreateFrame("Frame")
 -- Initialize function
 function AzeriteMOP:Initialize()
     -- self:Debug("Initializing AzeriteMOP...")
+    
+    -- CRITICAL: Check for addon conflicts that cause stack overflow
+    if IsAddOnLoaded("Bartender4") and IsAddOnLoaded("DragonflightUI") then
+        print("|cFFFF0000[AzeriteMOP]|r CRITICAL: Detected conflicting addons!")
+        print("|cFFFF0000[AzeriteMOP]|r Bartender4 and DragonflightUI are causing stack overflow")
+        print("|cFFFF0000[AzeriteMOP]|r Please disable one of these addons to prevent crashes")
+        print("|cFFFF0000[AzeriteMOP]|r AzeriteMOP will not load to prevent further issues")
+        return -- Don't initialize anything
+    end
     
     -- Set up saved variables with defaults
     if not AzeriteMOPDB then
@@ -168,6 +198,24 @@ function AzeriteMOP:Initialize()
         }
     end
     
+    if not AzeriteMOPDB.nameplate then
+        AzeriteMOPDB.nameplate = {
+            enabled = true,
+            scale = 1.0,
+            width = 120,
+            height = 12,
+            showCastbar = true,
+            showLevel = true,
+            showName = true,
+            classColors = true,
+            threatColors = true,
+            hideBlizzard = true,
+            fontSize = 10,
+            healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
+            castTexture = "Interface\\TargetingFrame\\UI-StatusBar"
+        }
+    end
+    
     self.db = AzeriteMOPDB
     
     -- Debug database state
@@ -198,6 +246,14 @@ function AzeriteMOP:Initialize()
     else
         -- self:Debug("ExplorerMode module not found!")
     end
+    
+    if self.Nameplate then
+        self.Nameplate:Initialize()
+    else
+        -- self:Debug("Nameplate module not found!")
+    end
+    
+
     
     -- Set up slash commands
     self:SetupSlashCommands()
@@ -780,7 +836,7 @@ function AzeriteMOP:HandleSlashCommand(msg)
                 print("|cFF4488FF[AzeriteMOP]|r ChatFrame1 Debug Info:")
                 print("  Name: " .. ChatFrame1:GetName())
                 print("  Shown: " .. tostring(ChatFrame1:IsShown()))
-                print("  Alpha: " .. tostring(ChatFrame1:GetAlpha()))
+                print("  Alpha: " .. tostring(ChatFrame1:IsShown()))
                 print("  Frame Level: " .. tostring(ChatFrame1:GetFrameLevel()))
                 
                 -- Check for background elements
@@ -821,6 +877,7 @@ function AzeriteMOP:HandleSlashCommand(msg)
             print("  /az chat applychat - Apply texture directly to ChatFrame1")
             print("  /az chat debugchat - Debug ChatFrame1 structure")
         end
+
     else
         self:ShowHelp()
     end

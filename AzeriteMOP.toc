@@ -20,3 +20,6 @@ Modules\ChatFrame\ChatFrame.lua
 
 # Explorer Mode module
 Modules\ExplorerMode\ExplorerMode.lua
+
+# Nameplate module
+Modules\Nameplate\Nameplate.lua
