@@ -26,6 +26,10 @@ function PlayerFrame:Initialize()
     -- Set up periodic updates to ensure bars work properly
     self:SetupPeriodicUpdates()
     
+    -- Apply custom colors and textures
+    self:UpdateColors()
+    self:UpdateTextures()
+    
     -- Try to hide default Blizzard player frame (optional)
     -- This might fail if the default UI isn't loaded yet, which is okay
     pcall(function()
@@ -74,7 +78,12 @@ function PlayerFrame:CreatePlayerFrame()
     else
         self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, -150)
     end
-    self.frame:SetScale(AzeriteMOP.db.playerFrame.scale or 1.0)
+    -- Use global scale if enabled, otherwise use individual scale
+    local scale = AzeriteMOP.db.playerFrame.scale or 1.0
+    if AzeriteMOP.db.global and AzeriteMOP.db.global.useGlobalScale then
+        scale = AzeriteMOP.db.global.uiScale or 1.0
+    end
+    self.frame:SetScale(scale)
     
     -- Make it movable (for testing/positioning) - respect locked state
     local isLocked = AzeriteMOP.db.playerFrame.locked
@@ -126,9 +135,10 @@ function PlayerFrame:CreateHealthBar()
     self.healthBG:SetFrameLevel(30) -- Set very high frame level to appear on top of everything
     
     -- Use hp_mid_case.tga as the background frame
-    local healthBGTex = self.healthBG:CreateTexture(nil, "BACKGROUND")
-    healthBGTex:SetAllPoints()
-    healthBGTex:SetTexture("Interface\\AddOns\\AzeriteMOP\\Textures\\hp_mid_case")
+    self.healthBGTex = self.healthBG:CreateTexture(nil, "BACKGROUND")
+    self.healthBGTex:SetAllPoints()
+    self.healthBGTex:SetTexture("Interface\\AddOns\\AzeriteMOP\\Textures\\hp_mid_case")
+    self.healthBGTex:SetVertexColor(1, 1, 1, 1)  -- No tint, use original texture colors
     
     
     -- Health bar using hp_cap_bar.tga - positioned inside the larger background
@@ -140,8 +150,9 @@ function PlayerFrame:CreateHealthBar()
     self.healthBar:SetMinMaxValues(0, 100)
     self.healthBar:SetValue(100)
     
-    -- Health bar color - will change based on health percentage
-    self.healthBar:SetStatusBarColor(0.5, 0.0, 1.0) -- Purple when full
+    -- Health bar color - use settings color
+    local hr, hg, hb = AzeriteMOP:GetColor("playerHealth")
+    self.healthBar:SetStatusBarColor(hr, hg, hb)
     
     -- Health text
     self.healthText = self.healthBar:CreateFontString(nil, "OVERLAY")
@@ -224,6 +235,7 @@ function PlayerFrame:CreatePowerBar()
     self.crystalBack = self.powerBG:CreateTexture(nil, "BACKGROUND")
     self.crystalBack:SetAllPoints()
     self.crystalBack:SetTexture("Interface\\AddOns\\AzeriteMOP\\Textures\\power_crystal_back")
+    self.crystalBack:SetVertexColor(1, 1, 1, 1)  -- No tint, use original texture colors
     
     -- Power bar using crystal front texture - this IS the crystal
     self.powerBar = CreateFrame("StatusBar", nil, self.powerBG)
@@ -234,8 +246,9 @@ function PlayerFrame:CreatePowerBar()
     self.powerBar:SetValue(100)
     self.powerBar:SetFrameLevel(10) -- Set lower frame level so case appears on top
     
-    -- Power bar color - gold
-    self.powerBar:SetStatusBarColor(1.0, 0.8, 0.0, 1.0) -- Gold
+    -- Power bar color - use settings color
+    local pr, pg, pb = AzeriteMOP:GetColor("playerPower")
+    self.powerBar:SetStatusBarColor(pr, pg, pb)
     
     -- Power text
     self.powerText = self.powerBar:CreateFontString(nil, "OVERLAY")
@@ -344,6 +357,7 @@ function PlayerFrame:OnEvent(event, unit, ...)
     elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
         if unit == "player" then
             self:UpdateHealth()
+            -- Don't update colors here as it's not needed for player
         end
     elseif event == "PLAYER_TARGET_CHANGED" then
         -- Update secondary resource when target changes (for combo points)
@@ -385,8 +399,9 @@ function PlayerFrame:UpdateHealth()
             self.healthText:SetText(health)
         end
         
-        -- Keep health bar purple
-        self.healthBar:SetStatusBarColor(0.5, 0.0, 1.0) -- Purple
+        -- Use color from settings
+        local hr, hg, hb = AzeriteMOP:GetColor("playerHealth")
+        self.healthBar:SetStatusBarColor(hr, hg, hb)
     end
 end
 
@@ -425,8 +440,9 @@ function PlayerFrame:UpdatePower()
             self.powerText:SetText(power)
         end
         
-        -- Keep power bar gold
-        self.powerBar:SetStatusBarColor(1.0, 0.8, 0.0, 1.0) -- Gold
+        -- Use color from settings
+        local pr, pg, pb = AzeriteMOP:GetColor("playerPower")
+        self.powerBar:SetStatusBarColor(pr, pg, pb)
     end
 end
 
@@ -547,6 +563,56 @@ function PlayerFrame:UpdateSecondaryResource()
         -- AzeriteMOP:Debug("Hiding secondary resource bar - no secondary resource for " .. class)
         self.secondaryResourceBG:Hide()
     end
+end
+
+-- Function to update textures based on settings
+function PlayerFrame:UpdateTextures()
+    -- Player frame uses custom Azerite textures that are part of its unique design
+    -- We preserve these instead of overriding them with the texture system
+    -- The custom textures are:
+    -- - hp_cap_bar.tga for health bar
+    -- - hp_mid_case.tga for health background
+    -- - hp_mid_case_glow.tga for health glow
+    -- - power_crystal_front for power bar
+    -- - power_crystal_back for power background
+    -- This maintains the unique Azerite UI aesthetic
+end
+
+-- Function to update colors based on settings
+function PlayerFrame:UpdateColors()
+    if not AzeriteMOP.db.colors then
+        return
+    end
+    
+    -- Update health bar color
+    local hr, hg, hb = AzeriteMOP:GetColor("playerHealth")
+    self.healthBar:SetStatusBarColor(hr, hg, hb)
+    
+    -- Health background texture should not be tinted - use original texture colors
+    if self.healthBGTex then
+        self.healthBGTex:SetVertexColor(1, 1, 1, 1)  -- No tint, full opacity
+    end
+    
+    -- Update power bar color from settings
+    local pr, pg, pb = AzeriteMOP:GetColor("playerPower")
+    if self.powerBar then
+        self.powerBar:SetStatusBarColor(pr, pg, pb)
+    end
+    
+    -- Power background texture should not be tinted - use original texture colors
+    if self.crystalBack then
+        self.crystalBack:SetVertexColor(1, 1, 1, 1)  -- No tint, full opacity
+    end
+    
+    -- Update text colors
+    local tr, tg, tb = AzeriteMOP:GetColor("playerText")
+    self.healthText:SetTextColor(tr, tg, tb)
+    self.powerText:SetTextColor(tr, tg, tb)
+    self.nameText:SetTextColor(tr, tg, tb)
+    
+    -- Update level text color
+    local lr, lg, lb = AzeriteMOP:GetColor("playerLevelText")
+    self.levelText:SetTextColor(lr, lg, lb)
 end
 
 -- Function to scale fonts independently

@@ -57,6 +57,9 @@ function AzeriteMOP:EnsureDatabase()
     if not self.db.playerFrame.locked then
         self.db.playerFrame.locked = false
     end
+    if not self.db.playerFrame.fontScale then
+        self.db.playerFrame.fontScale = 1.0
+    end
     
     if not self.db.targetFrame.position then
         self.db.targetFrame.position = { "CENTER", UIParent, "CENTER", 0, 150 }
@@ -66,6 +69,9 @@ function AzeriteMOP:EnsureDatabase()
     end
     if not self.db.targetFrame.locked then
         self.db.targetFrame.locked = false
+    end
+    if not self.db.targetFrame.fontScale then
+        self.db.targetFrame.fontScale = 1.0
     end
     
     if not self.db.explorerMode then
@@ -85,15 +91,12 @@ function AzeriteMOP:EnsureDatabase()
         -- self:Debug("Creating chatFrame in database")
         self.db.chatFrame = {
             enabled = true,
-            fade = true,
-            editboxHide = true,
-            addTimestamp = false,
+            fadeChat = true,  -- Enable chat fade effect
+            hideEditBox = true,  -- Hide edit box when not typing
+            showTimestamps = false,  -- Add timestamps to messages
             numScrollMessages = 3,
             scrollDownInterval = 0,
             maxCopyLines = 100,
-            showTimestamps = false,
-            hideEditBox = true,
-            fadeChat = true,
             showEmojis = false,
             showURLs = true,
             showChatBubbles = true
@@ -116,6 +119,108 @@ function AzeriteMOP:EnsureDatabase()
             fontSize = 10,
             healthTexture = "Interface\\TargetingFrame\\UI-StatusBar",
             castTexture = "Interface\\TargetingFrame\\UI-StatusBar"
+        }
+    end
+    
+    -- Global UI settings
+    if not self.db.global then
+        self.db.global = {
+            uiScale = 1.0,  -- Global UI scale multiplier
+            useGlobalScale = false  -- Whether to use global scale
+        }
+    end
+    
+    -- Texture settings
+    if not self.db.textures then
+        self.db.textures = {
+            -- Bar textures
+            healthBar = "Interface\\TargetingFrame\\UI-StatusBar",
+            powerBar = "Interface\\TargetingFrame\\UI-StatusBar",
+            castBar = "Interface\\TargetingFrame\\UI-StatusBar",
+            
+            -- Background textures
+            barBackground = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            frameBackground = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            
+            -- Border textures
+            frameBorder = "Interface\\Tooltips\\UI-Tooltip-Border",
+            
+            -- Custom texture paths (user can add their own)
+            custom = {}
+        }
+    end
+    
+    -- Color customization settings
+    if not self.db.colors then
+        self.db.colors = {
+            -- Player Frame colors
+            playerHealth = { r = 0.0, g = 0.8, b = 0.0 },  -- Green
+            playerHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            playerPower = { r = 0.0, g = 0.5, b = 1.0 },  -- Blue (mana)
+            playerPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            playerText = { r = 1.0, g = 1.0, b = 1.0 },
+            playerLevelText = { r = 1.0, g = 0.82, b = 0.0 },
+            
+            -- Target Frame colors
+            targetHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            targetHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            targetHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            targetHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            targetPower = { r = 0.0, g = 0.5, b = 1.0 },
+            targetPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            targetText = { r = 1.0, g = 1.0, b = 1.0 },
+            targetLevelText = { r = 1.0, g = 0.82, b = 0.0 },
+            
+            -- Cast bar colors
+            castBarNormal = { r = 1.0, g = 0.7, b = 0.0 },  -- Orange
+            castBarChannel = { r = 0.0, g = 1.0, b = 0.0 },  -- Green
+            castBarInterruptible = { r = 1.0, g = 0.7, b = 0.0 },
+            castBarNotInterruptible = { r = 0.7, g = 0.7, b = 0.7 },  -- Gray
+            castBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            castBarText = { r = 1.0, g = 1.0, b = 1.0 },
+            castBarTimeText = { r = 1.0, g = 1.0, b = 0.0 },
+            
+            -- Nameplate colors
+            nameplateHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            nameplateHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            nameplateHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            nameplateHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateCastBar = { r = 1.0, g = 0.7, b = 0.0 },
+            nameplateCastBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateNameText = { r = 1.0, g = 1.0, b = 1.0 },
+            nameplateLevelText = { r = 1.0, g = 0.82, b = 0.0 },
+            
+            -- Power colors by type
+            powerColors = {
+                MANA = { r = 0.0, g = 0.5, b = 1.0 },
+                RAGE = { r = 1.0, g = 0.0, b = 0.0 },
+                FOCUS = { r = 1.0, g = 0.5, b = 0.25 },
+                ENERGY = { r = 1.0, g = 1.0, b = 0.0 },
+                RUNIC_POWER = { r = 0.0, g = 0.82, b = 1.0 },
+                CHI = { r = 0.71, g = 1.0, b = 0.92 }
+            },
+            
+            -- Class colors override (optional)
+            useClassColors = true,
+            overrideClassColors = false,
+            classColorOverrides = {}  -- Will be populated if needed
+        }
+    end
+    
+    -- Profile system (initialize after all other settings)
+    if not self.db.profiles then
+        self.db.profiles = {
+            current = "Default",
+            list = {}
+        }
+        -- Save current settings as Default profile
+        self.db.profiles.list["Default"] = {
+            playerFrame = self:CopyTable(self.db.playerFrame),
+            targetFrame = self:CopyTable(self.db.targetFrame),
+            explorerMode = self:CopyTable(self.db.explorerMode),
+            chatFrame = self:CopyTable(self.db.chatFrame),
+            nameplate = self:CopyTable(self.db.nameplate),
+            global = self:CopyTable(self.db.global)
         }
     end
     
@@ -216,6 +321,22 @@ function AzeriteMOP:Initialize()
         }
     end
     
+    -- Global UI settings
+    if not AzeriteMOPDB.global then
+        AzeriteMOPDB.global = {
+            uiScale = 1.0,  -- Global UI scale multiplier
+            useGlobalScale = false  -- Whether to use global scale
+        }
+    end
+    
+    -- Profile system (initialize after all other settings)
+    if not AzeriteMOPDB.profiles then
+        AzeriteMOPDB.profiles = {
+            current = "Default",
+            list = {}
+        }
+    end
+    
     self.db = AzeriteMOPDB
     
     -- Debug database state
@@ -253,10 +374,26 @@ function AzeriteMOP:Initialize()
         -- self:Debug("Nameplate module not found!")
     end
     
-
+    -- Initialize Settings Menu
+    if self.SettingsMenu then
+        self.SettingsMenu:Initialize()
+    else
+        -- self:Debug("SettingsMenu module not found!")
+    end
     
     -- Set up slash commands
     self:SetupSlashCommands()
+    
+    -- Create preset profiles if they don't exist
+    self:CreatePresetProfiles()
+    
+    -- Apply global scale if enabled
+    if self.db.global and self.db.global.useGlobalScale then
+        -- Delay to ensure frames are created
+        self:ScheduleTimer(function()
+            self:ApplyGlobalScale()
+        end, 0.5)
+    end
     
     -- self:Debug("AzeriteMOP initialized successfully!")
 end
@@ -356,33 +493,48 @@ function AzeriteMOP:HandleSlashCommand(msg)
         self:ToggleFrameLock()
     elseif command == "scale" then
         self:HandleScaleCommand(args)
+    elseif command == "globalscale" then
+        self:HandleGlobalScaleCommand(args)
+    elseif command == "profile" then
+        self:HandleProfileCommand(args)
+    elseif command == "color" then
+        self:HandleColorCommand(args)
+    elseif command == "texture" then
+        self:HandleTextureCommand(args)
     elseif command == "reset" then
         self:ResetFramePositions()
+    elseif command == "settings" or command == "config" or command == "menu" then
+        if self.SettingsMenu then
+            self.SettingsMenu:Toggle()
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Settings menu not available")
+        end
     elseif command == "help" then
         self:ShowHelp()
-    elseif command == "test" then
-        -- print("|cFF4488FF[AzeriteMOP]|r Test command works!")
-        -- self:Debug("Test command executed successfully")
-    elseif command == "testscale" then
-        if self.TargetFrame then
-            self.TargetFrame:TestScaling()
-            -- print("|cFF4488FF[AzeriteMOP]|r Target frame scaling test applied!")
-        else
-            -- print("|cFF4488FF[AzeriteMOP]|r TargetFrame module not found!")
-        end
-    elseif command == "testfontscale" then
-        if self.PlayerFrame then
-            self.PlayerFrame:ScaleFonts(1.5)
-            -- print("|cFF4488FF[AzeriteMOP]|r Player frame font scaling test applied!")
-        else
-            -- print("|cFF4488FF[AzeriteMOP]|r PlayerFrame module not found!")
-        end
-        if self.TargetFrame then
-            self.TargetFrame:ScaleFonts(1.5)
-            -- print("|cFF4488FF[AzeriteMOP]|r Target frame font scaling test applied!")
-        else
-            -- print("|cFF4488FF[AzeriteMOP]|r TargetFrame module not found!")
-        end
+    -- DEBUG COMMANDS (commented out for production)
+    -- elseif command == "test" then
+    --     -- print("|cFF4488FF[AzeriteMOP]|r Test command works!")
+    --     -- self:Debug("Test command executed successfully")
+    -- elseif command == "testscale" then
+    --     if self.TargetFrame then
+    --         self.TargetFrame:TestScaling()
+    --         -- print("|cFF4488FF[AzeriteMOP]|r Target frame scaling test applied!")
+    --     else
+    --         -- print("|cFF4488FF[AzeriteMOP]|r TargetFrame module not found!")
+    --     end
+    -- elseif command == "testfontscale" then
+    --     if self.PlayerFrame then
+    --         self.PlayerFrame:ScaleFonts(1.5)
+    --         -- print("|cFF4488FF[AzeriteMOP]|r Player frame font scaling test applied!")
+    --     else
+    --         -- print("|cFF4488FF[AzeriteMOP]|r PlayerFrame module not found!")
+    --     end
+    --     if self.TargetFrame then
+    --         self.TargetFrame:ScaleFonts(1.5)
+    --         -- print("|cFF4488FF[AzeriteMOP]|r Target frame font scaling test applied!")
+    --     else
+    --         -- print("|cFF4488FF[AzeriteMOP]|r TargetFrame module not found!")
+    --     end
     elseif command == "fontscale" then
         self:HandleFontScaleCommand(args)
     elseif command == "resetfonts" then
@@ -405,20 +557,20 @@ function AzeriteMOP:HandleSlashCommand(msg)
                 -- print("|cFF4488FF[AzeriteMOP]|r TargetFrame module not found!")
             end
         end
-    elseif command == "testdb" then
-        self:EnsureDatabase()
-        -- print("|cFF4488FF[AzeriteMOP]|r Database test - playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
-        -- print("|cFF4488FF[AzeriteMOP]|r Database test - targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
-        -- print("|cFF4488FF[AzeriteMOP]|r Database test - explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
-        -- if self.db.playerFrame then
-        --     print("|cFF4488FF[AzeriteMOP]|r Player frame locked: " .. tostring(self.db.playerFrame.locked))
-        -- end
-        -- if self.db.targetFrame then
-        --     print("|cFF4488FF[AzeriteMOP]|r Target frame locked: " .. tostring(self.db.targetFrame.locked))
-        -- end
-        -- if self.db.explorerMode then
-        --     print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled: " .. tostring(self.db.explorerMode.enabled))
-        -- end
+    -- elseif command == "testdb" then
+    --     self:EnsureDatabase()
+    --     -- print("|cFF4488FF[AzeriteMOP]|r Database test - playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
+    --     -- print("|cFF4488FF[AzeriteMOP]|r Database test - targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
+    --     -- print("|cFF4488FF[AzeriteMOP]|r Database test - explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
+    --     -- if self.db.playerFrame then
+    --     --     print("|cFF4488FF[AzeriteMOP]|r Player frame locked: " .. tostring(self.db.playerFrame.locked))
+    --     -- end
+    --     -- if self.db.targetFrame then
+    --     --     print("|cFF4488FF[AzeriteMOP]|r Target frame locked: " .. tostring(self.db.targetFrame.locked))
+    --     -- end
+    --     -- if self.db.explorerMode then
+    --     --     print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled: " .. tostring(self.db.explorerMode.enabled))
+    --     -- end
     elseif command == "resetdb" then
         -- Completely reset the saved variables
         AzeriteMOPDB = nil
@@ -427,33 +579,18 @@ function AzeriteMOP:HandleSlashCommand(msg)
         -- print("|cFF4488FF[AzeriteMOP]|r Database completely reset and reinitialized")
     elseif command == "explorer" then
         local subCommand = string.lower(args[2] or "")
-        if subCommand == "debug" then
-            if self.ExplorerMode then
-                self.ExplorerMode:DebugInfo()
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "checkdelay" then
-            if self.ExplorerMode then
-                self.ExplorerMode:CheckDelayValue()
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "resetdelay" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ResetStationaryDelay()
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "enable" then
+        -- Keep only "on" and "off" for enabling/disabling
+        if subCommand == "on" then
             if self.ExplorerMode then
                 self.ExplorerMode:ForceEnable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled")
             else
                 print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
             end
-        elseif subCommand == "disable" then
+        elseif subCommand == "off" then
             if self.ExplorerMode then
                 self.ExplorerMode:ForceDisable()
+                print("|cFF4488FF[AzeriteMOP]|r Explorer mode disabled")
             else
                 print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
             end
@@ -470,77 +607,56 @@ function AzeriteMOP:HandleSlashCommand(msg)
                 print("|cFF4488FF[AzeriteMOP]|r Usage: /az explorer setdelay <seconds>")
                 print("  Example: /az explorer setdelay 30")
             end
-        elseif subCommand == "forcereset" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ForceResetDatabase()
-                print("|cFF4488FF[AzeriteMOP]|r Database force reset complete")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "on" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ForceEnable()
-                print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "off" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ForceDisable()
-                print("|cFF4488FF[AzeriteMOP]|r Explorer mode disabled")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
+        -- Debug commands (commented out)
+        -- elseif subCommand == "debug" then
+        --     if self.ExplorerMode then
+        --         self.ExplorerMode:DebugInfo()
+        --     else
+        --         print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        --     end
+        -- elseif subCommand == "checkdelay" then
+        --     if self.ExplorerMode then
+        --         self.ExplorerMode:CheckDelayValue()
+        --     else
+        --         print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        --     end
+        -- elseif subCommand == "resetdelay" then
+        --     if self.ExplorerMode then
+        --         self.ExplorerMode:ResetStationaryDelay()
+        --     else
+        --         print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        --     end
+        -- elseif subCommand == "forcereset" then
+        --     if self.ExplorerMode then
+        --         self.ExplorerMode:ForceResetDatabase()
+        --         print("|cFF4488FF[AzeriteMOP]|r Database force reset complete")
+        --     else
+        --         print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+        --     end
         else
             print("|cFF4488FF[AzeriteMOP]|r Explorer mode commands:")
-            print("  /az explorer debug - Show debug info")
-            print("  /az explorer checkdelay - Check current delay value")
-            print("  /az explorer resetdelay - Reset delay to 30 seconds")
-            print("  /az explorer setdelay <seconds> - Set delay to specific seconds")
-            print("  /az explorer forcereset - Force reset database to defaults")
-            print("  /az explorer enable - Force enable explorer mode")
-            print("  /az explorer disable - Force disable explorer mode")
             print("  /az explorer on - Enable explorer mode")
             print("  /az explorer off - Disable explorer mode")
+            print("  /az explorer setdelay <seconds> - Set UI hide delay (default: 30)")
         end
         -- print("|cFF4488FF[AzeriteMOP]|r playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
         -- print("|cFF4488FF[AzeriteMOP]|r explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
-    elseif command == "ex" then
-        local subCommand = string.lower(args[2] or "")
-        if subCommand == "on" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ForceEnable()
-                print("|cFF4488FF[AzeriteMOP]|r Explorer mode enabled")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        elseif subCommand == "off" then
-            if self.ExplorerMode then
-                self.ExplorerMode:ForceDisable()
-                print("|cFF4488FF[AzeriteMOP]|r Explorer mode disabled")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-            end
-        else
-            print("|cFF4488FF[AzeriteMOP]|r Explorer mode commands:")
-            print("  /az ex on - Enable explorer mode")
-            print("  /az ex off - Disable explorer mode")
-        end
-    elseif command == "checkdb" then
-        -- Check the current state of saved variables
-        -- print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB exists: " .. tostring(AzeriteMOPDB ~= nil))
-        -- if AzeriteMOPDB then
-        --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.playerFrame exists: " .. tostring(AzeriteMOPDB.playerFrame ~= nil))
-        --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.targetFrame exists: " .. tostring(AzeriteMOPDB.targetFrame ~= nil))
-        --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.explorerMode exists: " .. tostring(AzeriteMOPDB.explorerMode ~= nil))
-        -- end
-        -- print("|cFF4488FF[AzeriteMOP]|r self.db exists: " .. tostring(self.db ~= nil))
-        -- if self.db then
-        --     print("|cFF4488FF[AzeriteMOP]|r self.db.playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
-        --     print("|cFF4488FF[AzeriteMOP]|r self.db.targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
-        --     print("|cFF4488FF[AzeriteMOP]|r self.db.explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
-        -- end
+    -- Removed duplicate "ex" command - use "explorer" instead
+    -- elseif command == "checkdb" then
+    --     -- Check the current state of saved variables
+    --     -- print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB exists: " .. tostring(AzeriteMOPDB ~= nil))
+    --     -- if AzeriteMOPDB then
+    --     --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.playerFrame exists: " .. tostring(AzeriteMOPDB.playerFrame ~= nil))
+    --     --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.targetFrame exists: " .. tostring(AzeriteMOPDB.targetFrame ~= nil))
+    --     --     print("|cFF4488FF[AzeriteMOP]|r AzeriteMOPDB.explorerMode exists: " .. tostring(AzeriteMOPDB.explorerMode ~= nil))
+    --     -- end
+    --     -- print("|cFF4488FF[AzeriteMOP]|r self.db exists: " .. tostring(self.db ~= nil))
+    --     -- if self.db then
+    --     --     print("|cFF4488FF[AzeriteMOP]|r self.db.playerFrame exists: " .. tostring(self.db.playerFrame ~= nil))
+    --     --     print("|cFF4488FF[AzeriteMOP]|r self.db.targetFrame exists: " .. tostring(self.db.targetFrame ~= nil))
+    --     --     print("|cFF4488FF[AzeriteMOP]|r self.db.explorerMode exists: " .. tostring(self.db.explorerMode ~= nil))
+    --     -- end
     elseif command == "explorer" then
         self:HandleExplorerCommand(args)
     elseif command == "testexplorer" then
@@ -558,21 +674,21 @@ function AzeriteMOP:HandleSlashCommand(msg)
         else
             print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
         end
-    elseif command == "forceexplorer" then
-        local subCommand = string.lower(args[2] or "")
-        if self.ExplorerMode then
-            if subCommand == "on" then
-                self.ExplorerMode:ForceEnable()
-                print("|cFF4488FF[AzeriteMOP]|r Force enabled explorer mode")
-            elseif subCommand == "off" then
-                self.ExplorerMode:ForceDisable()
-                print("|cFF4488FF[AzeriteMOP]|r Force disabled explorer mode")
-            else
-                print("|cFF4488FF[AzeriteMOP]|r Usage: /az forceexplorer [on|off]")
-            end
-        else
-            print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
-        end
+    -- elseif command == "forceexplorer" then
+    --     local subCommand = string.lower(args[2] or "")
+    --     if self.ExplorerMode then
+    --         if subCommand == "on" then
+    --             self.ExplorerMode:ForceEnable()
+    --             print("|cFF4488FF[AzeriteMOP]|r Force enabled explorer mode")
+    --         elseif subCommand == "off" then
+    --             self.ExplorerMode:ForceDisable()
+    --             print("|cFF4488FF[AzeriteMOP]|r Force disabled explorer mode")
+    --         else
+    --             print("|cFF4488FF[AzeriteMOP]|r Usage: /az forceexplorer [on|off]")
+    --         end
+    --     else
+    --         print("|cFF4488FF[AzeriteMOP]|r ExplorerMode module not found!")
+    --     end
     elseif command == "scanframes" then
         if self.ExplorerMode then
             print("|cFF4488FF[AzeriteMOP]|r Scanning for visible frames...")
@@ -922,15 +1038,1121 @@ function AzeriteMOP:ToggleFrameLock()
     -- print("|cFF4488FF[AzeriteMOP]|r Frames " .. status)
 end
 
+function AzeriteMOP:UpdateFrameLocks()
+    -- Update frame lock states without toggling
+    -- This is called from the settings menu
+    
+    -- Ensure database is properly initialized
+    self:EnsureDatabase()
+    
+    local lockState = self.db.playerFrame.locked
+    
+    -- Update player frame
+    if self.PlayerFrame and self.PlayerFrame.frame then
+        self.PlayerFrame.frame:SetMovable(not lockState)
+        self.PlayerFrame.frame:EnableMouse(not lockState)
+    end
+    
+    -- Update target frame  
+    if self.TargetFrame and self.TargetFrame.frame then
+        self.TargetFrame.frame:SetMovable(not lockState)
+        self.TargetFrame.frame:EnableMouse(not lockState)
+    end
+    
+    local status = lockState and "locked" or "unlocked"
+    print("|cFF4488FF[AzeriteMOP]|r Frames " .. status)
+end
+
+function AzeriteMOP:HandleTextureCommand(args)
+    local subCommand = string.lower(args[2] or "")
+    
+    if subCommand == "set" then
+        local textureKey = args[3]
+        local textureName = args[4]
+        
+        if not textureKey or not textureName then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az texture set <key> <name>")
+            print("  Keys: healthBar, powerBar, castBar, barBackground, frameBackground")
+            print("  Example: /az texture set healthBar Smooth")
+            return
+        end
+        
+        -- Find texture by name
+        local texturePath = nil
+        local textureList = self:GetTextureList()
+        
+        for _, texture in ipairs(textureList) do
+            if string.lower(texture.name) == string.lower(textureName) then
+                texturePath = texture.path
+                break
+            end
+        end
+        
+        -- Check custom textures
+        if not texturePath and self.db.textures.custom then
+            texturePath = self.db.textures.custom[textureName]
+        end
+        
+        if not texturePath then
+            print("|cFF4488FF[AzeriteMOP]|r Texture '" .. textureName .. "' not found")
+            print("Use /az texture list to see available textures")
+            return
+        end
+        
+        self:SetTexture(textureKey, texturePath)
+        
+    elseif subCommand == "list" then
+        local page = tonumber(args[3]) or 1
+        local itemsPerPage = 15
+        local textureList = self:GetTextureList()
+        local totalPages = math.ceil(#textureList / itemsPerPage)
+        
+        page = math.max(1, math.min(page, totalPages))
+        
+        print("|cFF4488FF[AzeriteMOP]|r Available textures (Page " .. page .. "/" .. totalPages .. "):")
+        
+        local startIdx = (page - 1) * itemsPerPage + 1
+        local endIdx = math.min(startIdx + itemsPerPage - 1, #textureList)
+        
+        for i = startIdx, endIdx do
+            local texture = textureList[i]
+            print("  " .. texture.name)
+        end
+        
+        if self.db.textures.custom and next(self.db.textures.custom) then
+            print("|cFFFFFF00Custom textures:|r")
+            for name, _ in pairs(self.db.textures.custom) do
+                print("  " .. name)
+            end
+        end
+        
+        if totalPages > 1 then
+            print("Use /az texture list " .. (page + 1) .. " for next page")
+        end
+        
+    elseif subCommand == "current" then
+        print("|cFF4488FF[AzeriteMOP]|r Current texture settings:")
+        print("  healthBar: " .. (self.db.textures.healthBar or "Default"))
+        print("  powerBar: " .. (self.db.textures.powerBar or "Default"))
+        print("  castBar: " .. (self.db.textures.castBar or "Default"))
+        print("  barBackground: " .. (self.db.textures.barBackground or "Default"))
+        print("  frameBackground: " .. (self.db.textures.frameBackground or "Default"))
+        
+    elseif subCommand == "reset" then
+        self:ResetTextures()
+        
+    elseif subCommand == "custom" then
+        local name = args[3]
+        local path = args[4]
+        
+        if not name or not path then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az texture custom <name> <path>")
+            print("  Example: /az texture custom MyTexture Interface\\AddOns\\MyAddon\\MyTexture")
+            return
+        end
+        
+        self:AddCustomTexture(name, path)
+        
+    elseif subCommand == "apply" then
+        self:ApplyAllTextures()
+        print("|cFF4488FF[AzeriteMOP]|r All textures reapplied")
+        
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Texture commands:")
+        print("  /az texture set <key> <name> - Set a texture")
+        print("  /az texture list [page] - List available textures")
+        print("  /az texture current - Show current texture settings")
+        print("  /az texture reset - Reset all textures to defaults")
+        print("  /az texture custom <name> <path> - Add custom texture")
+        print("  /az texture apply - Reapply all textures")
+        print("")
+        print("Texture keys:")
+        print("  healthBar - Health bar texture")
+        print("  powerBar - Power/mana bar texture")
+        print("  castBar - Cast bar texture")
+        print("  barBackground - Bar background texture")
+        print("  frameBackground - Frame background texture")
+    end
+end
+
+function AzeriteMOP:HandleColorCommand(args)
+    local subCommand = string.lower(args[2] or "")
+    
+    if subCommand == "set" then
+        local colorKey = args[3]
+        local r = tonumber(args[4])
+        local g = tonumber(args[5])
+        local b = tonumber(args[6])
+        
+        if not colorKey or not r or not g or not b then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az color set <colorKey> <r> <g> <b>")
+            print("  RGB values should be 0-255 or 0.0-1.0")
+            print("  Example: /az color set playerHealth 0 255 0")
+            return
+        end
+        
+        -- Convert 0-255 to 0-1 if needed
+        if r > 1 then r = r / 255 end
+        if g > 1 then g = g / 255 end
+        if b > 1 then b = b / 255 end
+        
+        if self:SetColor(colorKey, r, g, b) then
+            local colorStr = string.format("|cFF%02X%02X%02X", r*255, g*255, b*255)
+            print(string.format("|cFF4488FF[AzeriteMOP]|r %s set to %s■|r", colorKey, colorStr))
+        end
+    elseif subCommand == "list" then
+        local category = string.lower(args[3] or "")
+        self:ListColors(category)
+    elseif subCommand == "reset" then
+        local category = string.lower(args[3] or "all")
+        self:ResetColors(category)
+    elseif subCommand == "picker" then
+        -- Simple color picker using RGB values
+        print("|cFF4488FF[AzeriteMOP]|r Color Reference:")
+        local samples = {
+            { name = "Red", r = 255, g = 0, b = 0 },
+            { name = "Green", r = 0, g = 255, b = 0 },
+            { name = "Blue", r = 0, g = 0, b = 255 },
+            { name = "Yellow", r = 255, g = 255, b = 0 },
+            { name = "Cyan", r = 0, g = 255, b = 255 },
+            { name = "Magenta", r = 255, g = 0, b = 255 },
+            { name = "Orange", r = 255, g = 165, b = 0 },
+            { name = "Purple", r = 128, g = 0, b = 128 },
+            { name = "Pink", r = 255, g = 192, b = 203 },
+            { name = "Brown", r = 139, g = 69, b = 19 },
+            { name = "Gray", r = 128, g = 128, b = 128 },
+            { name = "White", r = 255, g = 255, b = 255 },
+            { name = "Black", r = 0, g = 0, b = 0 }
+        }
+        for _, sample in ipairs(samples) do
+            local colorStr = string.format("|cFF%02X%02X%02X", sample.r, sample.g, sample.b)
+            print(string.format("  %s%s|r - RGB(%d, %d, %d)", colorStr, sample.name, sample.r, sample.g, sample.b))
+        end
+    elseif subCommand == "class" then
+        local enable = string.lower(args[3] or "")
+        if enable == "on" then
+            self.db.colors.useClassColors = true
+            print("|cFF4488FF[AzeriteMOP]|r Class colors enabled")
+        elseif enable == "off" then
+            self.db.colors.useClassColors = false
+            print("|cFF4488FF[AzeriteMOP]|r Class colors disabled")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Class colors are " .. (self.db.colors.useClassColors and "enabled" or "disabled"))
+            print("  Use: /az color class on/off")
+        end
+        -- Apply changes
+        if self.TargetFrame then self.TargetFrame:UpdateColors() end
+        if self.Nameplate then self.Nameplate:UpdateAllColors() end
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Color commands:")
+        print("  /az color set <key> <r> <g> <b> - Set a specific color")
+        print("  /az color list [category] - List colors (player/target/castbar/nameplate)")
+        print("  /az color reset [category|all] - Reset colors to defaults")
+        print("  /az color picker - Show color reference")
+        print("  /az color class on/off - Enable/disable class colors")
+        print("")
+        print("Common color keys:")
+        print("  playerHealth, playerPower, playerText")
+        print("  targetHealthHostile, targetHealthFriendly")
+        print("  castBarNormal, castBarChannel")
+        print("  nameplateHealthHostile, nameplateCastBar")
+    end
+end
+
+function AzeriteMOP:HandleProfileCommand(args)
+    local subCommand = string.lower(args[2] or "")
+    
+    if subCommand == "save" then
+        local profileName = args[3]
+        if not profileName then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az profile save <name>")
+            return
+        end
+        self:SaveProfile(profileName)
+    elseif subCommand == "load" then
+        local profileName = args[3]
+        if not profileName then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az profile load <name>")
+            return
+        end
+        self:LoadProfile(profileName)
+    elseif subCommand == "delete" then
+        local profileName = args[3]
+        if not profileName then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az profile delete <name>")
+            return
+        end
+        self:DeleteProfile(profileName)
+    elseif subCommand == "list" then
+        self:ListProfiles()
+    elseif subCommand == "current" then
+        if self.db.profiles and self.db.profiles.current then
+            print("|cFF4488FF[AzeriteMOP]|r Current profile: " .. self.db.profiles.current)
+        else
+            print("|cFF4488FF[AzeriteMOP]|r No profile system initialized")
+        end
+    elseif subCommand == "copy" then
+        local fromProfile = args[3]
+        local toProfile = args[4]
+        if not fromProfile or not toProfile then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az profile copy <from> <to>")
+            return
+        end
+        if self.db.profiles and self.db.profiles.list[fromProfile] then
+            self.db.profiles.list[toProfile] = self:CopyTable(self.db.profiles.list[fromProfile])
+            print("|cFF4488FF[AzeriteMOP]|r Profile '" .. fromProfile .. "' copied to '" .. toProfile .. "'")
+        else
+            print("|cFF4488FF[AzeriteMOP]|r Source profile '" .. fromProfile .. "' not found")
+        end
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Profile commands:")
+        print("  /az profile save <name> - Save current settings to profile")
+        print("  /az profile load <name> - Load a saved profile")
+        print("  /az profile delete <name> - Delete a saved profile")
+        print("  /az profile list - List all saved profiles")
+        print("  /az profile current - Show current profile")
+        print("  /az profile copy <from> <to> - Copy a profile")
+    end
+end
+
+function AzeriteMOP:HandleGlobalScaleCommand(args)
+    local subCommand = string.lower(args[2] or "")
+    
+    if subCommand == "set" then
+        local scale = tonumber(args[3])
+        if not scale then
+            print("|cFF4488FF[AzeriteMOP]|r Usage: /az globalscale set <0.5-2.0>")
+            return
+        end
+        
+        scale = math.max(0.5, math.min(2.0, scale))
+        self.db.global.uiScale = scale
+        self.db.global.useGlobalScale = true
+        
+        -- Apply to all frames
+        self:ApplyGlobalScale()
+        
+        print("|cFF4488FF[AzeriteMOP]|r Global UI scale set to " .. scale)
+    elseif subCommand == "on" then
+        self.db.global.useGlobalScale = true
+        self:ApplyGlobalScale()
+        print("|cFF4488FF[AzeriteMOP]|r Global UI scale enabled (scale: " .. self.db.global.uiScale .. ")")
+    elseif subCommand == "off" then
+        self.db.global.useGlobalScale = false
+        self:RestoreIndividualScales()
+        print("|cFF4488FF[AzeriteMOP]|r Global UI scale disabled - using individual frame scales")
+    elseif subCommand == "status" then
+        print("|cFF4488FF[AzeriteMOP]|r Global UI Scale:")
+        print("  Enabled: " .. tostring(self.db.global.useGlobalScale))
+        print("  Scale: " .. self.db.global.uiScale)
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Global scale commands:")
+        print("  /az globalscale set <0.5-2.0> - Set and enable global scale")
+        print("  /az globalscale on - Enable global scale")
+        print("  /az globalscale off - Disable global scale")
+        print("  /az globalscale status - Show current settings")
+    end
+end
+
+function AzeriteMOP:ApplyGlobalScale()
+    if not self.db.global.useGlobalScale then
+        return
+    end
+    
+    local scale = self.db.global.uiScale
+    
+    -- Apply to player frame
+    if self.PlayerFrame and self.PlayerFrame.frame then
+        self.PlayerFrame.frame:SetScale(scale)
+    end
+    
+    -- Apply to target frame
+    if self.TargetFrame and self.TargetFrame.frame then
+        self.TargetFrame.frame:SetScale(scale)
+    end
+    
+    -- Apply to nameplates if they exist
+    if self.Nameplate and self.Nameplate.ApplyGlobalScale then
+        self.Nameplate:ApplyGlobalScale(scale)
+    end
+end
+
+-- Profile System Functions
+function AzeriteMOP:GetCurrentSettings()
+    -- Return a deep copy of current settings (excluding profiles themselves)
+    local settings = {}
+    
+    if self.db then
+        settings.playerFrame = self:CopyTable(self.db.playerFrame or {})
+        settings.targetFrame = self:CopyTable(self.db.targetFrame or {})
+        settings.explorerMode = self:CopyTable(self.db.explorerMode or {})
+        settings.chatFrame = self:CopyTable(self.db.chatFrame or {})
+        settings.nameplate = self:CopyTable(self.db.nameplate or {})
+        settings.global = self:CopyTable(self.db.global or {})
+        settings.colors = self:CopyTable(self.db.colors or {})
+        settings.textures = self:CopyTable(self.db.textures or {})
+    end
+    
+    return settings
+end
+
+function AzeriteMOP:CopyTable(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in pairs(orig) do
+            copy[self:CopyTable(orig_key)] = self:CopyTable(orig_value)
+        end
+    else
+        copy = orig
+    end
+    return copy
+end
+
+function AzeriteMOP:SaveProfile(profileName)
+    if not profileName or profileName == "" then
+        print("|cFF4488FF[AzeriteMOP]|r Invalid profile name")
+        return false
+    end
+    
+    -- Initialize profiles if needed
+    if not self.db.profiles then
+        self.db.profiles = {
+            current = "Default",
+            list = {}
+        }
+    end
+    
+    -- Save current settings to the profile
+    self.db.profiles.list[profileName] = self:GetCurrentSettings()
+    print("|cFF4488FF[AzeriteMOP]|r Profile '" .. profileName .. "' saved")
+    return true
+end
+
+function AzeriteMOP:LoadProfile(profileName)
+    if not self.db.profiles or not self.db.profiles.list[profileName] then
+        print("|cFF4488FF[AzeriteMOP]|r Profile '" .. profileName .. "' not found")
+        return false
+    end
+    
+    local profile = self.db.profiles.list[profileName]
+    
+    -- Apply the profile settings
+    self.db.playerFrame = self:CopyTable(profile.playerFrame or {})
+    self.db.targetFrame = self:CopyTable(profile.targetFrame or {})
+    self.db.explorerMode = self:CopyTable(profile.explorerMode or {})
+    self.db.chatFrame = self:CopyTable(profile.chatFrame or {})
+    self.db.nameplate = self:CopyTable(profile.nameplate or {})
+    self.db.global = self:CopyTable(profile.global or {})
+    self.db.colors = self:CopyTable(profile.colors or {})
+    self.db.textures = self:CopyTable(profile.textures or {})
+    
+    -- Update current profile
+    self.db.profiles.current = profileName
+    
+    -- Apply changes to UI
+    self:ApplyProfileSettings()
+    
+    print("|cFF4488FF[AzeriteMOP]|r Profile '" .. profileName .. "' loaded")
+    return true
+end
+
+function AzeriteMOP:DeleteProfile(profileName)
+    if profileName == "Default" then
+        print("|cFF4488FF[AzeriteMOP]|r Cannot delete the Default profile")
+        return false
+    end
+    
+    if not self.db.profiles or not self.db.profiles.list[profileName] then
+        print("|cFF4488FF[AzeriteMOP]|r Profile '" .. profileName .. "' not found")
+        return false
+    end
+    
+    -- If deleting current profile, switch to Default
+    if self.db.profiles.current == profileName then
+        self:LoadProfile("Default")
+    end
+    
+    self.db.profiles.list[profileName] = nil
+    print("|cFF4488FF[AzeriteMOP]|r Profile '" .. profileName .. "' deleted")
+    return true
+end
+
+function AzeriteMOP:CreatePresetProfiles()
+    -- Create some preset profiles for common use cases
+    
+    -- Compact profile - smaller UI for more screen space
+    local compact = {
+        playerFrame = { 
+            enabled = true, 
+            scale = 0.8, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", -200, -150 }
+        },
+        targetFrame = { 
+            enabled = true, 
+            scale = 0.8, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", 200, -150 }
+        },
+        nameplate = { 
+            enabled = true, 
+            scale = 0.9,
+            width = 100,
+            height = 10,
+            fontSize = 9
+        },
+        global = { uiScale = 0.85, useGlobalScale = true },
+        explorerMode = { enabled = true, stationaryDelay = 15 },
+        chatFrame = { enabled = true, fadeChat = true, hideEditBox = true }
+    }
+    
+    -- Large profile - bigger UI for visibility
+    local large = {
+        playerFrame = { 
+            enabled = true, 
+            scale = 1.3, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", -250, -180 }
+        },
+        targetFrame = { 
+            enabled = true, 
+            scale = 1.3, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", 250, -180 }
+        },
+        nameplate = { 
+            enabled = true, 
+            scale = 1.2,
+            width = 140,
+            height = 14,
+            fontSize = 12
+        },
+        global = { uiScale = 1.2, useGlobalScale = true },
+        explorerMode = { enabled = false },
+        chatFrame = { enabled = true, fadeChat = false, hideEditBox = false }
+    }
+    
+    -- PvP profile - optimized for PvP
+    local pvp = {
+        playerFrame = { 
+            enabled = true, 
+            scale = 1.0, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", -150, -100 }
+        },
+        targetFrame = { 
+            enabled = true, 
+            scale = 1.1, 
+            locked = true,
+            position = { "CENTER", UIParent, "CENTER", 150, -100 }
+        },
+        nameplate = { 
+            enabled = true, 
+            scale = 1.0,
+            width = 120,
+            height = 12,
+            fontSize = 10,
+            showCastbar = true,
+            classColors = true,
+            threatColors = false
+        },
+        global = { uiScale = 1.0, useGlobalScale = false },
+        explorerMode = { enabled = false },
+        chatFrame = { enabled = true, fadeChat = false, hideEditBox = true }
+    }
+    
+    -- Raiding profile - clean UI for raiding
+    local raid = {
+        playerFrame = { 
+            enabled = true, 
+            scale = 0.9, 
+            locked = true,
+            position = { "BOTTOMLEFT", UIParent, "BOTTOMLEFT", 300, 300 }
+        },
+        targetFrame = { 
+            enabled = true, 
+            scale = 0.9, 
+            locked = true,
+            position = { "BOTTOM", UIParent, "BOTTOM", 0, 250 }
+        },
+        nameplate = { 
+            enabled = true, 
+            scale = 0.8,
+            width = 100,
+            height = 10,
+            fontSize = 9
+        },
+        global = { uiScale = 0.9, useGlobalScale = true },
+        explorerMode = { enabled = false },
+        chatFrame = { enabled = true, fadeChat = true, hideEditBox = true }
+    }
+    
+    -- Only create presets if they don't exist
+    if not self.db.profiles.list["Compact"] then
+        self.db.profiles.list["Compact"] = compact
+    end
+    if not self.db.profiles.list["Large"] then
+        self.db.profiles.list["Large"] = large
+    end
+    if not self.db.profiles.list["PvP"] then
+        self.db.profiles.list["PvP"] = pvp
+    end
+    if not self.db.profiles.list["Raid"] then
+        self.db.profiles.list["Raid"] = raid
+    end
+end
+
+function AzeriteMOP:ListProfiles()
+    if not self.db.profiles or not self.db.profiles.list then
+        print("|cFF4488FF[AzeriteMOP]|r No profiles found")
+        return
+    end
+    
+    local presets = { "Default", "Compact", "Large", "PvP", "Raid" }
+    local presetLookup = {}
+    for _, name in ipairs(presets) do
+        presetLookup[name] = true
+    end
+    
+    print("|cFF4488FF[AzeriteMOP]|r Available profiles:")
+    
+    -- Show preset profiles first
+    print("  |cFFFFFF00Presets:|r")
+    for _, name in ipairs(presets) do
+        if self.db.profiles.list[name] then
+            local current = ""
+            if self.db.profiles.current == name then
+                current = " |cFF00FF00(current)|r"
+            end
+            print("    - " .. name .. current)
+        end
+    end
+    
+    -- Show custom profiles
+    local hasCustom = false
+    for name, _ in pairs(self.db.profiles.list) do
+        if not presetLookup[name] then
+            if not hasCustom then
+                print("  |cFFFFFF00Custom:|r")
+                hasCustom = true
+            end
+            local current = ""
+            if self.db.profiles.current == name then
+                current = " |cFF00FF00(current)|r"
+            end
+            print("    - " .. name .. current)
+        end
+    end
+end
+
+function AzeriteMOP:ApplyProfileSettings()
+    -- Reapply all settings to the UI
+    
+    -- Update frame positions and scales
+    if self.PlayerFrame and self.PlayerFrame.frame then
+        local pos = self.db.playerFrame.position
+        if pos and pos[1] then
+            self.PlayerFrame.frame:ClearAllPoints()
+            self.PlayerFrame.frame:SetPoint(pos[1], UIParent, pos[3] or "CENTER", pos[4] or 0, pos[5] or -150)
+        end
+        
+        local scale = self.db.playerFrame.scale or 1.0
+        if self.db.global and self.db.global.useGlobalScale then
+            scale = self.db.global.uiScale or 1.0
+        end
+        self.PlayerFrame.frame:SetScale(scale)
+        
+        -- Update locked state
+        local isLocked = self.db.playerFrame.locked
+        self.PlayerFrame.frame:SetMovable(not isLocked)
+        self.PlayerFrame.frame:EnableMouse(not isLocked)
+    end
+    
+    if self.TargetFrame and self.TargetFrame.frame then
+        local pos = self.db.targetFrame.position
+        if pos and pos[1] then
+            self.TargetFrame.frame:ClearAllPoints()
+            self.TargetFrame.frame:SetPoint(pos[1], UIParent, pos[3] or "CENTER", pos[4] or 0, pos[5] or 150)
+        end
+        
+        if self.TargetFrame.UpdateScaling then
+            self.TargetFrame:UpdateScaling()
+        end
+        
+        -- Update locked state
+        local isLocked = self.db.targetFrame.locked
+        self.TargetFrame.frame:SetMovable(not isLocked)
+        self.TargetFrame.frame:EnableMouse(not isLocked)
+    end
+    
+    -- Apply global scale if enabled
+    if self.db.global and self.db.global.useGlobalScale then
+        self:ApplyGlobalScale()
+    end
+    
+    -- Reinitialize modules if needed
+    if self.ExplorerMode and self.ExplorerMode.Initialize then
+        -- Explorer mode will check its own enabled state
+        if self.db.explorerMode.enabled then
+            self.ExplorerMode:ForceEnable()
+        else
+            self.ExplorerMode:ForceDisable()
+        end
+    end
+end
+
+-- Texture System Functions
+function AzeriteMOP:GetTextureList()
+    -- List of built-in WoW textures
+    return {
+        -- Status bar textures
+        { name = "Blizzard", path = "Interface\\TargetingFrame\\UI-StatusBar" },
+        { name = "Solid", path = "Interface\\Buttons\\WHITE8X8" },
+        { name = "Smooth", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Smooth" },
+        { name = "Minimalist", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Minimalist" },
+        { name = "Flat", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Flat" },
+        { name = "Gradient", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Gradient" },
+        
+        -- Additional Blizzard textures
+        { name = "Frost", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Frost" },
+        { name = "Healbot", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Healbot" },
+        { name = "LiteStep", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\LiteStep" },
+        { name = "Otravi", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Otravi" },
+        { name = "Perl", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Perl" },
+        { name = "Smooth v2", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Smoothv2" },
+        { name = "Striped", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Striped" },
+        { name = "Aluminium", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Aluminium" },
+        { name = "BantoBar", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\BantoBar" },
+        { name = "Bars", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Bars" },
+        { name = "Button", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Button" },
+        { name = "Charcoal", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Charcoal" },
+        { name = "Cilo", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Cilo" },
+        { name = "Cloud", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Cloud" },
+        { name = "Comet", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Comet" },
+        { name = "Dabs", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Dabs" },
+        { name = "DarkBottom", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\DarkBottom" },
+        { name = "Diagonal", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Diagonal" },
+        { name = "Empty", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Empty" },
+        { name = "Falken", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Falken" },
+        { name = "Fifths", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Fifths" },
+        { name = "Fourths", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Fourths" },
+        { name = "Glamour", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour" },
+        { name = "Glamour2", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour2" },
+        { name = "Glamour3", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour3" },
+        { name = "Glamour4", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour4" },
+        { name = "Glamour5", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour5" },
+        { name = "Glamour6", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour6" },
+        { name = "Glamour7", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glamour7" },
+        { name = "Glass", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glass" },
+        { name = "Glaze", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Glaze" },
+        { name = "Gloss", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Gloss" },
+        { name = "Graphite", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Graphite" },
+        { name = "Grid", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Grid" },
+        { name = "Hatched", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Hatched" },
+        { name = "Lyfe", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Lyfe" },
+        { name = "Melli", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Melli" },
+        { name = "MelliDark", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\MelliDark" },
+        { name = "MelliDarkRough", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\MelliDarkRough" },
+        { name = "Minimalist", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Minimalist" },
+        { name = "Norman", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Norman" },
+        { name = "Outline", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Outline" },
+        { name = "Pip", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Pip" },
+        { name = "Rain", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Rain" },
+        { name = "Rocks", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Rocks" },
+        { name = "Round", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Round" },
+        { name = "Ruben", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Ruben" },
+        { name = "Runes", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Runes" },
+        { name = "Skewed", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Skewed" },
+        { name = "Smudge", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Smudge" },
+        { name = "Steel", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Steel" },
+        { name = "Striped", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Striped" },
+        { name = "Tube", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Tube" },
+        { name = "Water", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Water" },
+        { name = "Wglass", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Wglass" },
+        { name = "Wisps", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Wisps" },
+        { name = "Xeon", path = "Interface\\AddOns\\AzeriteMOP\\Textures\\Xeon" }
+    }
+end
+
+function AzeriteMOP:SetTexture(textureKey, texturePath)
+    if not self.db.textures then
+        self.db.textures = {}
+    end
+    
+    -- Validate texture key
+    local validKeys = {
+        "healthBar", "powerBar", "castBar",
+        "barBackground", "frameBackground", "frameBorder"
+    }
+    
+    local isValid = false
+    for _, key in ipairs(validKeys) do
+        if key == textureKey then
+            isValid = true
+            break
+        end
+    end
+    
+    if not isValid then
+        print("|cFF4488FF[AzeriteMOP]|r Invalid texture key: " .. textureKey)
+        print("Valid keys: healthBar, powerBar, castBar, barBackground, frameBackground, frameBorder")
+        return false
+    end
+    
+    self.db.textures[textureKey] = texturePath
+    
+    -- Apply texture changes
+    self:ApplyTextureChanges(textureKey)
+    
+    print("|cFF4488FF[AzeriteMOP]|r " .. textureKey .. " texture updated")
+    return true
+end
+
+function AzeriteMOP:GetTexture(textureKey)
+    if not self.db.textures or not self.db.textures[textureKey] then
+        -- Return default texture
+        return "Interface\\TargetingFrame\\UI-StatusBar"
+    end
+    return self.db.textures[textureKey]
+end
+
+function AzeriteMOP:ApplyTextureChanges(textureKey)
+    -- Apply texture changes to UI elements
+    if textureKey == "healthBar" then
+        if self.PlayerFrame and self.PlayerFrame.healthBar then
+            self.PlayerFrame.healthBar:SetStatusBarTexture(self:GetTexture("healthBar"))
+        end
+        if self.TargetFrame and self.TargetFrame.healthBar then
+            self.TargetFrame.healthBar:SetStatusBarTexture(self:GetTexture("healthBar"))
+        end
+        if self.Nameplate then
+            self.Nameplate:UpdateAllTextures()
+        end
+    elseif textureKey == "powerBar" then
+        if self.PlayerFrame and self.PlayerFrame.powerBar then
+            self.PlayerFrame.powerBar:SetStatusBarTexture(self:GetTexture("powerBar"))
+        end
+        if self.TargetFrame and self.TargetFrame.powerBar then
+            self.TargetFrame.powerBar:SetStatusBarTexture(self:GetTexture("powerBar"))
+        end
+    elseif textureKey == "castBar" then
+        if self.TargetFrame and self.TargetFrame.castBar then
+            self.TargetFrame.castBar:SetStatusBarTexture(self:GetTexture("castBar"))
+        end
+        if self.Nameplate then
+            self.Nameplate:UpdateAllTextures()
+        end
+    elseif textureKey == "barBackground" then
+        if self.PlayerFrame then
+            self.PlayerFrame:UpdateTextures()
+        end
+        if self.TargetFrame then
+            self.TargetFrame:UpdateTextures()
+        end
+    elseif textureKey == "frameBackground" then
+        if self.PlayerFrame then
+            self.PlayerFrame:UpdateTextures()
+        end
+        if self.TargetFrame then
+            self.TargetFrame:UpdateTextures()
+        end
+    end
+end
+
+function AzeriteMOP:ApplyAllTextures()
+    -- Apply all textures to all frames
+    if self.PlayerFrame then
+        self.PlayerFrame:UpdateTextures()
+    end
+    if self.TargetFrame then
+        self.TargetFrame:UpdateTextures()
+    end
+    if self.Nameplate then
+        self.Nameplate:UpdateAllTextures()
+    end
+end
+
+function AzeriteMOP:ResetTextures()
+    self.db.textures = {
+        healthBar = "Interface\\TargetingFrame\\UI-StatusBar",
+        powerBar = "Interface\\TargetingFrame\\UI-StatusBar",
+        castBar = "Interface\\TargetingFrame\\UI-StatusBar",
+        barBackground = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        frameBackground = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        frameBorder = "Interface\\Tooltips\\UI-Tooltip-Border",
+        custom = {}
+    }
+    
+    self:ApplyAllTextures()
+    print("|cFF4488FF[AzeriteMOP]|r All textures reset to defaults")
+end
+
+function AzeriteMOP:AddCustomTexture(name, path)
+    if not self.db.textures.custom then
+        self.db.textures.custom = {}
+    end
+    
+    self.db.textures.custom[name] = path
+    print("|cFF4488FF[AzeriteMOP]|r Custom texture '" .. name .. "' added")
+end
+
+-- Color System Functions
+function AzeriteMOP:SetColor(colorKey, r, g, b)
+    if not self.db.colors then
+        self.db.colors = {}
+    end
+    
+    if not self.db.colors[colorKey] then
+        print("|cFF4488FF[AzeriteMOP]|r Unknown color key: " .. colorKey)
+        return false
+    end
+    
+    -- If r is nil, reset to default
+    if r == nil then
+        -- Get default color based on key
+        local defaults = {
+            playerHealth = { r = 0.0, g = 0.8, b = 0.0 },
+            playerHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            playerPower = { r = 0.0, g = 0.5, b = 1.0 },
+            playerPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            playerText = { r = 1.0, g = 1.0, b = 1.0 },
+            playerLevelText = { r = 1.0, g = 0.82, b = 0.0 },
+            targetHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            targetHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            targetHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            targetHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            targetPower = { r = 0.0, g = 0.5, b = 1.0 },
+            targetPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            targetText = { r = 1.0, g = 1.0, b = 1.0 },
+            targetLevelText = { r = 1.0, g = 0.82, b = 0.0 },
+            castBarNormal = { r = 1.0, g = 0.7, b = 0.0 },
+            castBarChannel = { r = 0.0, g = 1.0, b = 0.0 },
+            castBarInterrupted = { r = 1.0, g = 0.0, b = 0.0 },
+            castBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            castBarText = { r = 1.0, g = 1.0, b = 1.0 },
+            castBarTimeText = { r = 0.8, g = 0.8, b = 0.8 },
+            -- Nameplate colors
+            nameplateHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            nameplateHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            nameplateHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            nameplateHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateCastBar = { r = 1.0, g = 0.7, b = 0.0 },
+            nameplateCastBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateText = { r = 1.0, g = 1.0, b = 1.0 },
+            nameplateLevelText = { r = 1.0, g = 0.82, b = 0.0 }
+        }
+        
+        if defaults[colorKey] then
+            self.db.colors[colorKey] = defaults[colorKey]
+        end
+    else
+        -- Clamp values between 0 and 1
+        r = math.max(0, math.min(1, r))
+        g = math.max(0, math.min(1, g))
+        b = math.max(0, math.min(1, b))
+        
+        self.db.colors[colorKey] = { r = r, g = g, b = b }
+    end
+    
+    -- Apply the color change immediately
+    self:ApplyColorChanges(colorKey)
+    
+    return true
+end
+
+function AzeriteMOP:GetColor(colorKey)
+    if not self.db.colors or not self.db.colors[colorKey] then
+        return 1.0, 1.0, 1.0  -- Default to white
+    end
+    
+    local color = self.db.colors[colorKey]
+    return color.r, color.g, color.b
+end
+
+function AzeriteMOP:ApplyColorChanges(colorKey)
+    -- Apply color changes to specific UI elements
+    if string.find(colorKey, "player") then
+        if self.PlayerFrame then
+            self.PlayerFrame:UpdateColors()
+        end
+    elseif string.find(colorKey, "target") then
+        if self.TargetFrame then
+            self.TargetFrame:UpdateColors()
+        end
+    elseif string.find(colorKey, "nameplate") then
+        if self.Nameplate then
+            self.Nameplate:UpdateAllColors()
+        end
+    elseif string.find(colorKey, "cast") then
+        -- Update cast bars on all frames
+        if self.PlayerFrame then
+            self.PlayerFrame:UpdateColors()
+        end
+        if self.TargetFrame then
+            self.TargetFrame:UpdateColors()
+        end
+        if self.Nameplate then
+            self.Nameplate:UpdateAllColors()
+        end
+    end
+end
+
+function AzeriteMOP:ResetColors(category)
+    -- Reset colors to defaults
+    local defaults = {
+        player = {
+            playerHealth = { r = 0.0, g = 0.8, b = 0.0 },
+            playerHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            playerPower = { r = 0.0, g = 0.5, b = 1.0 },
+            playerPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            playerText = { r = 1.0, g = 1.0, b = 1.0 },
+            playerLevelText = { r = 1.0, g = 0.82, b = 0.0 }
+        },
+        target = {
+            targetHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            targetHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            targetHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            targetHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            targetPower = { r = 0.0, g = 0.5, b = 1.0 },
+            targetPowerBg = { r = 0.1, g = 0.1, b = 0.2 },
+            targetText = { r = 1.0, g = 1.0, b = 1.0 },
+            targetLevelText = { r = 1.0, g = 0.82, b = 0.0 }
+        },
+        castbar = {
+            castBarNormal = { r = 1.0, g = 0.7, b = 0.0 },
+            castBarChannel = { r = 0.0, g = 1.0, b = 0.0 },
+            castBarInterruptible = { r = 1.0, g = 0.7, b = 0.0 },
+            castBarNotInterruptible = { r = 0.7, g = 0.7, b = 0.7 },
+            castBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            castBarText = { r = 1.0, g = 1.0, b = 1.0 },
+            castBarTimeText = { r = 1.0, g = 1.0, b = 0.0 }
+        },
+        nameplate = {
+            nameplateHealthFriendly = { r = 0.0, g = 1.0, b = 0.0 },
+            nameplateHealthNeutral = { r = 1.0, g = 1.0, b = 0.0 },
+            nameplateHealthHostile = { r = 1.0, g = 0.0, b = 0.0 },
+            nameplateHealthBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateCastBar = { r = 1.0, g = 0.7, b = 0.0 },
+            nameplateCastBarBg = { r = 0.1, g = 0.1, b = 0.1 },
+            nameplateNameText = { r = 1.0, g = 1.0, b = 1.0 },
+            nameplateLevelText = { r = 1.0, g = 0.82, b = 0.0 }
+        }
+    }
+    
+    if category == "all" then
+        for cat, colors in pairs(defaults) do
+            for key, color in pairs(colors) do
+                self.db.colors[key] = color
+            end
+        end
+        print("|cFF4488FF[AzeriteMOP]|r All colors reset to defaults")
+    elseif defaults[category] then
+        for key, color in pairs(defaults[category]) do
+            self.db.colors[key] = color
+        end
+        print("|cFF4488FF[AzeriteMOP]|r " .. category .. " colors reset to defaults")
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Unknown category. Use: player, target, castbar, nameplate, or all")
+        return
+    end
+    
+    -- Apply changes
+    if self.PlayerFrame then self.PlayerFrame:UpdateColors() end
+    if self.TargetFrame then self.TargetFrame:UpdateColors() end
+    if self.Nameplate then self.Nameplate:UpdateAllColors() end
+end
+
+function AzeriteMOP:ListColors(category)
+    if not self.db.colors then
+        print("|cFF4488FF[AzeriteMOP]|r No colors configured")
+        return
+    end
+    
+    local categories = {
+        player = "Player Frame",
+        target = "Target Frame",
+        castbar = "Cast Bars",
+        nameplate = "Nameplates"
+    }
+    
+    if category and categories[category] then
+        print("|cFF4488FF[AzeriteMOP]|r " .. categories[category] .. " Colors:")
+        for key, color in pairs(self.db.colors) do
+            if string.find(key, category) or (category == "castbar" and string.find(key, "castBar")) then
+                local r, g, b = color.r * 255, color.g * 255, color.b * 255
+                local colorStr = string.format("|cFF%02X%02X%02X", r, g, b)
+                print(string.format("  %s: %s■|r RGB(%.0f, %.0f, %.0f)", key, colorStr, r, g, b))
+            end
+        end
+    else
+        print("|cFF4488FF[AzeriteMOP]|r Available color categories:")
+        for key, name in pairs(categories) do
+            print("  " .. key .. " - " .. name)
+        end
+        print("Use: /az color list <category> to see specific colors")
+    end
+end
+
+function AzeriteMOP:RestoreIndividualScales()
+    -- Restore player frame scale
+    if self.PlayerFrame and self.PlayerFrame.frame then
+        self.PlayerFrame.frame:SetScale(self.db.playerFrame.scale or 1.0)
+    end
+    
+    -- Restore target frame scale
+    if self.TargetFrame and self.TargetFrame.frame then
+        self.TargetFrame.frame:SetScale(self.db.targetFrame.scale or 1.0)
+    end
+    
+    -- Restore nameplate scales
+    if self.Nameplate and self.Nameplate.RestoreIndividualScales then
+        self.Nameplate:RestoreIndividualScales()
+    end
+end
+
+function AzeriteMOP:UpdateAllColors()
+    -- Update colors for all modules
+    if self.PlayerFrame and self.PlayerFrame.UpdateColors then
+        self.PlayerFrame:UpdateColors()
+    end
+    if self.TargetFrame and self.TargetFrame.UpdateColors then
+        self.TargetFrame:UpdateColors()
+    end
+    if self.Nameplate and self.Nameplate.UpdateAllColors then
+        self.Nameplate:UpdateAllColors()
+    end
+end
+
+function AzeriteMOP:UpdateAllTextures()
+    -- Update textures for all modules
+    if self.PlayerFrame and self.PlayerFrame.UpdateTextures then
+        self.PlayerFrame:UpdateTextures()
+    end
+    if self.TargetFrame and self.TargetFrame.UpdateTextures then
+        self.TargetFrame:UpdateTextures()
+    end
+    if self.Nameplate and self.Nameplate.UpdateAllTextures then
+        self.Nameplate:UpdateAllTextures()
+    end
+end
+
 function AzeriteMOP:HandleScaleCommand(args)
     local frameType = string.lower(args[2] or "all")
     local scale = tonumber(args[3])
     
-            if not scale or scale < 0.1 or scale > 3.0 then
-            print("|cFF4488FF[AzeriteMOP]|r Usage: /az scale [player|target|all] [0.1-3.0]")
-            print("|cFF4488FF[AzeriteMOP]|r Example: /az scale all 1.2")
-            return
-        end
+    -- Check if global scale is enabled
+    if self.db.global and self.db.global.useGlobalScale then
+        print("|cFF4488FF[AzeriteMOP]|r Global scale is enabled. Use /az globalscale off to disable it first.")
+        return
+    end
+    
+    if not scale or scale < 0.1 or scale > 3.0 then
+        print("|cFF4488FF[AzeriteMOP]|r Usage: /az scale [player|target|all] [0.1-3.0]")
+        print("|cFF4488FF[AzeriteMOP]|r Example: /az scale all 1.2")
+        return
+    end
     
     -- Ensure database is properly initialized
     self:EnsureDatabase()
@@ -1074,52 +2296,35 @@ end
 
 function AzeriteMOP:ShowHelp()
     print("|cFF4488FF[AzeriteMOP]|r Commands:")
-    print("  /az - Toggle frame lock (movable/immovable)")
-    print("  /az scale [player|target|all] [0.1-3.0] - Scale frames")
+    print("  |cFFFFD700/az settings|r - Open the settings menu GUI")
+    print("  |cFFFFFF00Frame Commands:|r")
+    print("  /az lock - Toggle frame lock (movable/immovable)")
+    print("  /az scale [player|target] [0.5-2.0] - Scale frames individually")
+    print("  /az globalscale set [0.5-2.0] - Set global UI scale for all frames")
+    print("  /az globalscale on/off - Enable/disable global scaling")
     print("  /az fontscale [player|target|all] [0.5-3.0] - Scale fonts")
     print("  /az resetfonts [player|target|all] - Reset fonts to default size")
-    print("  /az reset - Reset frame positions and scales")
-    print("  /az testscale - Test target frame scaling")
-    print("  /az testfontscale - Test font scaling on both frames")
-    print("  /az testdb - Test database initialization")
-    print("  /az resetdb - Reset database completely")
-    print("  /az checkdb - Check database state")
-    print("  /az testexplorer - Test explorer mode manually")
-    print("  /az forceexplorer [on|off] - Force enable/disable explorer mode")
-    print("  /az scanframes - Scan for visible frames (debugging)")
-    print("  /az restore - Force restore all UI elements")
-    print("  /az showui - Force show all UI elements")
-    print("  /az hideui - Force hide all UI elements")
-    print("  /az showframes - Force show PlayerFrame and TargetFrame")
-    print("  /az checkframes - Check frame status")
-    print("  /az ex on - Enable explorer mode (manual control)")
-    print("  /az ex off - Disable explorer mode (manual control)")
-    print("  /az chat toggle - Toggle custom chat frame")
+    print("  /az reset - Reset all frame positions and scales")
+    print("  |cFFFFFF00Explorer Mode:|r")
+    print("  /az explorer on - Enable explorer mode")
+    print("  /az explorer off - Disable explorer mode")
+    print("  /az explorer setdelay <seconds> - Set UI hide delay")
+    print("  |cFFFFFF00Chat Commands:|r")
+    print("  /az chat toggle - Toggle chat enhancements")
     print("  /az chat copy - Open copy chat window")
-    print("  /az chat settings - Show chat frame settings")
+    print("  |cFFFFFF00Color Customization:|r")
+    print("  /az color set <key> <r> <g> <b> - Set a color (RGB 0-255)")
+    print("  /az color list [category] - List available colors")
+    print("  /az color reset [category|all] - Reset to defaults")
+    print("  /az color picker - Show color reference")
+    print("  |cFFFFFF00Profile System:|r")
+    print("  /az profile save <name> - Save current settings as profile")
+    print("  /az profile load <name> - Load a saved profile")
+    print("  /az profile list - List all profiles")
+    print("  /az profile delete <name> - Delete a profile")
+    print("  |cFFFFFF00Database:|r")
+    print("  /az resetdb - Reset all settings to defaults")
     print("  /az help - Show this help")
-    print("")
-    print("Examples:")
-    print("  /az scale all 1.2 - Scale all frames to 120%")
-    print("  /az scale player 0.8 - Scale player frame to 80%")
-    print("  /az scale target 1.5 - Scale target frame to 150%")
-    print("  /az fontscale all 1.3 - Scale all fonts to 130%")
-    print("  /az fontscale player 1.2 - Scale player fonts to 120%")
-    print("  /az fontscale target 1.4 - Scale target fonts to 140%")
-    print("  /az resetfonts all - Reset all fonts to default")
-    print("  /az resetfonts player - Reset player fonts to default")
-    print("  /az resetfonts target - Reset target fonts to default")
-    print("")
-    print("Explorer Mode Commands:")
-    print("  /az ex on - Enable explorer mode (manual control)")
-    print("  /az ex off - Disable explorer mode (manual control)")
-    print("  /az explorer on|off - Enable/disable explorer mode")
-    print("  /az explorer status - Show explorer mode status")
-    print("  /az explorer delay [seconds] - Set stationary delay")
-    print("  /az explorer threshold [value] - Set movement threshold")
-    print("  /az testexplorer - Test explorer mode manually")
-    print("  /az forceexplorer on|off - Force enable/disable explorer mode")
-    print("  /az scanframes - Scan for visible frames (debugging)")
 end
 
 -- Handle addon loading

@@ -166,3 +166,5 @@ Recent work includes transparent chat window functionality and texture cleanup.
 - Saved variables are crucial for maintaining user preferences and addon state
 - Debugging and development tools are essential for managing complex addon interactions
 - Texture and file organization helps maintain a clean and manageable project structure
+
+- Building an addon for Wow Classic Mists of Pandaria requires understanding the specific interface and API for this classic version (5.4.x)

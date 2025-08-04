@@ -17,9 +17,9 @@ function ChatFrame:Initialize()
     if not AzeriteMOP.db.chatFrame then
         AzeriteMOP.db.chatFrame = {
             enabled = true,
-            fade = true,
-            editboxHide = true,
-            addTimestamp = false,
+            fadeChat = true,  -- Enable chat fade effect
+            hideEditBox = true,  -- Hide edit box when not typing
+            showTimestamps = false,  -- Add timestamps to messages
             numScrollMessages = 3,
             scrollDownInterval = 0,
             maxCopyLines = 100

@@ -151,6 +151,118 @@ function TargetFrame:ResetFonts()
     AzeriteMOP:Debug("Target frame fonts reset to default")
 end
 
+-- Function to update textures based on settings
+function TargetFrame:UpdateTextures()
+    -- Target frame uses custom Azerite textures that are part of its unique design
+    -- We preserve these instead of overriding them with the texture system
+    -- The custom textures are:
+    -- - hp_lowmid_bar_flipped.tga for health bar
+    -- - hp_mid_case.tga for health background (mirrored)
+    -- - hp_mid_case_glow.tga for health glow
+    -- - portrait_frame_hi.tga for portrait frame
+    -- This maintains the unique Azerite UI aesthetic
+    
+    -- Only update cast bar texture since it's not part of the core design
+    if AzeriteMOP.db.textures and self.castBar then
+        local castTexture = AzeriteMOP:GetTexture("castBar")
+        if castTexture and castTexture ~= "Interface\\TargetingFrame\\UI-StatusBar" then
+            self.castBar:SetStatusBarTexture(castTexture)
+        end
+    end
+end
+
+-- Function to update colors based on settings
+function TargetFrame:UpdateColors()
+    if not AzeriteMOP.db.colors or not self.frame or not UnitExists("target") then
+        return
+    end
+    
+    -- Determine target reaction
+    local reaction = UnitReaction("target", "player")
+    local colorKey = "targetHealthNeutral"
+    
+    if UnitIsFriend("target", "player") then
+        colorKey = "targetHealthFriendly"
+    elseif UnitIsEnemy("target", "player") then
+        colorKey = "targetHealthHostile"
+    end
+    
+    -- Check for class colors
+    if AzeriteMOP.db.colors.useClassColors and UnitIsPlayer("target") then
+        local _, class = UnitClass("target")
+        if class and CLASS_COLORS[class] then
+            local color = CLASS_COLORS[class]
+            self.healthBar:SetStatusBarColor(color[1], color[2], color[3])
+        else
+            local hr, hg, hb = AzeriteMOP:GetColor(colorKey)
+            self.healthBar:SetStatusBarColor(hr, hg, hb)
+        end
+    else
+        local hr, hg, hb = AzeriteMOP:GetColor(colorKey)
+        self.healthBar:SetStatusBarColor(hr, hg, hb)
+    end
+    
+    -- Health background texture should not be tinted - use original texture colors
+    if self.healthBGTex then
+        self.healthBGTex:SetVertexColor(1, 1, 1, 1)  -- No tint, full opacity
+    end
+    
+    -- Target frame doesn't have a traditional power bar, it uses a portrait instead
+    -- So we skip power bar color updates for target frame
+    
+    -- Update text colors
+    local tr, tg, tb = AzeriteMOP:GetColor("targetText")
+    self.healthText:SetTextColor(tr, tg, tb)
+    self.powerText:SetTextColor(tr, tg, tb)
+    self.nameText:SetTextColor(tr, tg, tb)
+    
+    -- Update level text color
+    local lr, lg, lb = AzeriteMOP:GetColor("targetLevelText")
+    self.levelText:SetTextColor(lr, lg, lb)
+    
+    -- Update cast bar colors if casting
+    if self.castBar and self.castBar:IsShown() then
+        local casting = UnitCastingInfo("target")
+        local channeling = UnitChannelInfo("target")
+        
+        if channeling then
+            local cr, cg, cb = AzeriteMOP:GetColor("castBarChannel")
+            self.castBar:SetStatusBarColor(cr, cg, cb)
+        else
+            local cr, cg, cb = AzeriteMOP:GetColor("castBarNormal")
+            self.castBar:SetStatusBarColor(cr, cg, cb)
+        end
+        
+        -- Update cast bar background
+        local cbr, cbg, cbb = AzeriteMOP:GetColor("castBarBg")
+        if self.castBarBG then
+            self.castBarBG:SetVertexColor(cbr, cbg, cbb)
+        end
+        
+        -- Update cast text colors
+        local ctr, ctg, ctb = AzeriteMOP:GetColor("castBarText")
+        self.castText:SetTextColor(ctr, ctg, ctb)
+        
+        local ctr2, ctg2, ctb2 = AzeriteMOP:GetColor("castBarTimeText")
+        self.castTime:SetTextColor(ctr2, ctg2, ctb2)
+    end
+end
+
+-- Add class colors table if not defined
+local CLASS_COLORS = {
+    ["WARRIOR"] = {0.78, 0.61, 0.43},
+    ["PALADIN"] = {0.96, 0.55, 0.73},
+    ["HUNTER"] = {0.67, 0.83, 0.45},
+    ["ROGUE"] = {1.00, 0.96, 0.41},
+    ["PRIEST"] = {1.00, 1.00, 1.00},
+    ["DEATHKNIGHT"] = {0.77, 0.12, 0.23},
+    ["SHAMAN"] = {0.00, 0.44, 0.87},
+    ["MAGE"] = {0.41, 0.80, 0.94},
+    ["WARLOCK"] = {0.58, 0.51, 0.79},
+    ["MONK"] = {0.00, 1.00, 0.59},
+    ["DRUID"] = {1.00, 0.49, 0.04},
+}
+
 -- Function to update scaling from saved variables
 function TargetFrame:UpdateScaling()
     -- AzeriteMOP:Debug("UpdateScaling called")
@@ -171,8 +283,11 @@ function TargetFrame:UpdateScaling()
         }
     end
     
-    -- Access database directly
+    -- Use global scale if enabled, otherwise use individual scale
     local scale = AzeriteMOP.db.targetFrame.scale or 1.0
+    if AzeriteMOP.db.global and AzeriteMOP.db.global.useGlobalScale then
+        scale = AzeriteMOP.db.global.uiScale or 1.0
+    end
     -- AzeriteMOP:Debug("Applying scale: " .. scale)
     self:ApplyScaling(scale)
 end
@@ -278,6 +393,9 @@ function TargetFrame:CreateTargetFrame()
     -- Level and Class Text
     self:CreateLevelText()
     
+    -- Cast Bar
+    self:CreateCastBar()
+    
     -- Initially hide the frame until we have a target
     self.frame:Hide()
     
@@ -308,14 +426,15 @@ function TargetFrame:CreateHealthBar()
     -- Set the health bar to fill from right to left (so it empties from left to right)
     self.healthBar:SetReverseFill(true)
     
-    -- Health bar color - will change based on health percentage
-    self.healthBar:SetStatusBarColor(1.0, 0.5, 0.0) -- Orange when full (enemy)
+    -- Health bar color - will be set by UpdateColors()
+    self.healthBar:SetStatusBarColor(1.0, 0.0, 0.0) -- Default red for hostile
     
     -- Use hp_mid_case.tga as the background frame (mirrored) - NOW ON TOP
-    local healthBGTex = self.healthBG:CreateTexture(nil, "OVERLAY")
-    healthBGTex:SetAllPoints()
-    healthBGTex:SetTexture("Interface\\AddOns\\AzeriteMOP\\Textures\\hp_mid_case")
-    healthBGTex:SetTexCoord(1, 0, 0, 1) -- Mirror the background texture
+    self.healthBGTex = self.healthBG:CreateTexture(nil, "OVERLAY")
+    self.healthBGTex:SetAllPoints()
+    self.healthBGTex:SetTexture("Interface\\AddOns\\AzeriteMOP\\Textures\\hp_mid_case")
+    self.healthBGTex:SetTexCoord(1, 0, 0, 1) -- Mirror the background texture
+    self.healthBGTex:SetVertexColor(1, 1, 1, 1)  -- No tint, use original texture colors
     
     -- Health text (mirrored position)
     self.healthText = self.healthBar:CreateFontString(nil, "OVERLAY")
@@ -451,6 +570,7 @@ function TargetFrame:OnEvent(event, unit, ...)
     elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
         if unit == "target" then
             self:UpdateHealth()
+            self:UpdateColors()  -- Keep colors updated
         end
     elseif event == "UNIT_LEVEL" then
         if unit == "target" then
@@ -459,6 +579,16 @@ function TargetFrame:OnEvent(event, unit, ...)
     elseif event == "UNIT_NAME_UPDATE" then
         if unit == "target" then
             self:UpdateName()
+        end
+    elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" then
+        if unit == "target" then
+            self:UpdateCastBar()
+        end
+    elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_SUCCEEDED" or 
+           event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" or
+           event == "UNIT_SPELLCAST_CHANNEL_STOP" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
+        if unit == "target" then
+            self:UpdateCastBar()
         end
     end
 end
@@ -479,6 +609,8 @@ function TargetFrame:UpdateAll()
     self:UpdatePower()
     self:UpdateLevel()
     self:UpdateName()
+    self:UpdateColors()
+    self:UpdateTextures()
 end
 
 function TargetFrame:UpdateHealth()
@@ -502,15 +634,7 @@ function TargetFrame:UpdateHealth()
             self.healthText:SetText(health)
         end
         
-        -- Set health bar color based on health percentage
-        local healthPercent = health / maxHealth
-        if healthPercent > 0.5 then
-            self.healthBar:SetStatusBarColor(1.0, 0.5, 0.0) -- Orange
-        elseif healthPercent > 0.25 then
-            self.healthBar:SetStatusBarColor(1.0, 0.7, 0.0) -- Light Orange
-        else
-            self.healthBar:SetStatusBarColor(1.0, 0.3, 0.0) -- Dark Orange (low health)
-        end
+        -- Don't override the color here - it's set in UpdateColors()
         
         -- Re-apply texture coordinates after status bar update (status bars reset texture coords)
         -- self.healthBar:GetStatusBarTexture():SetTexCoord(1, 0, 0, 1)
@@ -572,11 +696,102 @@ function TargetFrame:UpdateName()
     end
 end
 
+function TargetFrame:CreateCastBar()
+    -- Cast bar container
+    self.castBG = CreateFrame("Frame", nil, self.frame)
+    self.castBG:SetPoint("TOP", self.healthBG, "BOTTOM", 0, -5)
+    local width = AzeriteMOP.db.targetFrame and AzeriteMOP.db.targetFrame.castBarWidth or 200
+    local height = AzeriteMOP.db.targetFrame and AzeriteMOP.db.targetFrame.castBarHeight or 20
+    self.castBG:SetSize(width, height)
+    
+    -- Cast bar background
+    self.castBarBG = self.castBG:CreateTexture(nil, "BACKGROUND")
+    self.castBarBG:SetAllPoints()
+    self.castBarBG:SetColorTexture(0, 0, 0, 0.7)
+    
+    -- Cast bar
+    self.castBar = CreateFrame("StatusBar", nil, self.castBG)
+    self.castBar:SetAllPoints()
+    self.castBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    self.castBar:SetMinMaxValues(0, 1)
+    self.castBar:SetValue(0)
+    self.castBar:Hide()
+    
+    -- Cast bar text (spell name)
+    self.castText = self.castBar:CreateFontString(nil, "OVERLAY")
+    self.castText:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    self.castText:SetPoint("LEFT", 5, 0)
+    self.castText:SetTextColor(1, 1, 1)
+    
+    -- Cast time text
+    self.castTime = self.castBar:CreateFontString(nil, "OVERLAY")
+    self.castTime:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    self.castTime:SetPoint("RIGHT", -5, 0)
+    self.castTime:SetTextColor(1, 1, 1)
+    
+    -- Register cast events
+    self.frame:RegisterEvent("UNIT_SPELLCAST_START")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_STOP")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_FAILED")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+    self.frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_UPDATE")
+end
+
+function TargetFrame:UpdateCastBar()
+    if not UnitExists("target") then
+        self.castBar:Hide()
+        return
+    end
+    
+    local name, _, _, startTime, endTime, _, _, notInterruptible = UnitCastingInfo("target")
+    local channeling = false
+    
+    if not name then
+        name, _, _, startTime, endTime, _, notInterruptible = UnitChannelInfo("target")
+        channeling = true
+    end
+    
+    if name then
+        self.castBar:Show()
+        self.castText:SetText(name)
+        
+        local duration = (endTime - startTime) / 1000
+        local current = GetTime() - (startTime / 1000)
+        
+        if channeling then
+            self.castBar:SetMinMaxValues(0, duration)
+            self.castBar:SetValue(duration - current)
+        else
+            self.castBar:SetMinMaxValues(0, duration)
+            self.castBar:SetValue(current)
+        end
+        
+        self.castTime:SetFormattedText("%.1f/%.1f", current, duration)
+        
+        -- Update colors
+        if notInterruptible then
+            self.castBar:SetStatusBarColor(0.7, 0.7, 0.7)
+        elseif channeling then
+            local cr, cg, cb = AzeriteMOP:GetColor("castBarChannel")
+            self.castBar:SetStatusBarColor(cr, cg, cb)
+        else
+            local cr, cg, cb = AzeriteMOP:GetColor("castBarNormal")
+            self.castBar:SetStatusBarColor(cr, cg, cb)
+        end
+    else
+        self.castBar:Hide()
+    end
+end
+
 function TargetFrame:UpdateTarget()
     -- This function is called periodically to ensure the target frame stays updated
     if UnitExists("target") then
         self:UpdateHealth()
         self:UpdatePower() -- This now updates the portrait and power text
+        self:UpdateCastBar() -- Update cast bar
     end
 end
 

@@ -544,9 +544,19 @@ function Nameplate:CreateCustomNameplate(parentFrame)
     
     -- Create container for our elements
     local container = CreateFrame("Frame", nil, plate)
-    container:SetSize(db.width or NAMEPLATE_WIDTH, db.height or NAMEPLATE_HEIGHT)
+    local width = db.width or NAMEPLATE_WIDTH
+    local height = db.height or NAMEPLATE_HEIGHT
+    container:SetSize(width, height)
     container:SetPoint("CENTER", parentFrame, "CENTER", 0, 0)
-    container:SetScale(db.scale or 1.0)
+    
+    -- Use global scale if enabled, otherwise use individual scale
+    local scale = db.scale or 1.0
+    if self.currentGlobalScale then
+        scale = self.currentGlobalScale
+    elseif AzeriteMOP.db.global and AzeriteMOP.db.global.useGlobalScale then
+        scale = AzeriteMOP.db.global.uiScale or 1.0
+    end
+    container:SetScale(scale)
     container:SetFrameLevel(plate:GetFrameLevel() + 1)
     plate.container = container
     
@@ -560,7 +570,7 @@ function Nameplate:CreateCustomNameplate(parentFrame)
     
     -- Create health bar
     local healthBar = CreateFrame("StatusBar", nil, container)
-    healthBar:SetSize(db.width or NAMEPLATE_WIDTH, db.height or NAMEPLATE_HEIGHT)
+    healthBar:SetSize(width, height)
     healthBar:SetPoint("CENTER", container, "CENTER", 0, 0)
     healthBar:SetStatusBarTexture(db.healthTexture)
     healthBar:SetMinMaxValues(0, 100)
@@ -600,7 +610,9 @@ function Nameplate:CreateCustomNameplate(parentFrame)
     -- Cast bar
     if db.showCastbar then
         local castBar = CreateFrame("StatusBar", nil, container)
-        castBar:SetSize(db.castBarWidth or db.width or NAMEPLATE_WIDTH, db.castBarHeight or CASTBAR_HEIGHT)
+        local castWidth = db.castBarWidth or width
+        local castHeight = db.castBarHeight or CASTBAR_HEIGHT
+        castBar:SetSize(castWidth, castHeight)
         castBar:SetPoint("TOP", healthBar, "BOTTOM", 0, -4)
         
         -- FIXED: Swapped textures - cast_back is the actual bar texture
@@ -779,6 +791,11 @@ function Nameplate:UpdateNameplate(frame, customPlate)
         
         -- Also store in frame for quick access
         frame.namePlateUnitToken = unit
+        
+        -- Store unit in custom plate for color updates
+        if customPlate then
+            customPlate.unit = unit
+        end
     end
     
     -- Get nameplate info from the default frame
@@ -799,39 +816,24 @@ function Nameplate:UpdateNameplate(frame, customPlate)
             customPlate.healthBar:SetMinMaxValues(0, maxHealth)
             customPlate.healthBar:SetValue(currentHealth)
             
-            -- Update health color based on reaction
-            local r, g, b = healthBar:GetStatusBarColor()
-            
-            -- Ensure we got valid colors
-            if r and g and b and (r > 0 or g > 0 or b > 0) then
-                -- Apply the color from the default nameplate
-                customPlate.healthBar:SetStatusBarColor(r, g, b)
-            else
-                -- Try to determine color based on frame properties
-                if frame.UnitFrame and frame.UnitFrame.healthBar then
-                    r, g, b = frame.UnitFrame.healthBar:GetStatusBarColor()
-                    if r and g and b and (r > 0 or g > 0 or b > 0) then
-                        customPlate.healthBar:SetStatusBarColor(r, g, b)
-                    else
-                        -- Default to hostile color (red)
-                        customPlate.healthBar:SetStatusBarColor(0.9, 0.15, 0.15)
-                    end
-                else
-                    -- Default to hostile color (red) 
-                    customPlate.healthBar:SetStatusBarColor(0.9, 0.15, 0.15)
-                end
-            end
+            -- Update health color using our color system
+            -- Don't copy from Blizzard nameplate, use our colors
+            self:UpdateNameplateColors(customPlate)
         else
             -- No valid health data, try to set default values
             customPlate.healthBar:SetMinMaxValues(0, 100)
             customPlate.healthBar:SetValue(100)
-            customPlate.healthBar:SetStatusBarColor(0.9, 0.15, 0.15)  -- Default hostile
+            -- Use our color system for default
+        local hr, hg, hb = AzeriteMOP:GetColor("nameplateHealthHostile")
+        customPlate.healthBar:SetStatusBarColor(hr, hg, hb)
         end
     else
         -- Can't find health bar, set defaults
         customPlate.healthBar:SetMinMaxValues(0, 100)
         customPlate.healthBar:SetValue(100)
-        customPlate.healthBar:SetStatusBarColor(0.9, 0.15, 0.15)  -- Default hostile
+        -- Use our color system for default
+        local hr, hg, hb = AzeriteMOP:GetColor("nameplateHealthHostile")
+        customPlate.healthBar:SetStatusBarColor(hr, hg, hb)
     end
     
     -- Update name and level - look harder for them
@@ -850,22 +852,8 @@ function Nameplate:UpdateNameplate(frame, customPlate)
             level = tostring(unitLevel)
         end
         
-        -- Get better color info from unit
-        if customPlate.healthBar then
-            if UnitIsPlayer(unit) then
-                -- Player - use class color
-                local _, class = UnitClass(unit)
-                if class and CLASS_COLORS[class] then
-                    customPlate.healthBar:SetStatusBarColor(unpack(CLASS_COLORS[class]))
-                end
-            else
-                -- NPC - use reaction color
-                local reaction = UnitReaction(unit, "player")
-                if reaction and REACTION_COLORS[reaction] then
-                    customPlate.healthBar:SetStatusBarColor(unpack(REACTION_COLORS[reaction]))
-                end
-            end
-        end
+        -- Update colors using our color system
+        self:UpdateNameplateColors(customPlate)
     end
     
     -- If we didn't find a name, try alternative methods
@@ -1020,8 +1008,7 @@ function Nameplate:UpdateNameplate(frame, customPlate)
                 end
                 
                 -- Set cast bar color based on interruptibility and type
-                local r, g, b = 1, 0.7, 0  -- Default
-                local db = AzeriteMOP.db.nameplate
+                local r, g, b
                 
                 -- Try to detect if spell is interruptible from source cast bar color
                 -- In MoP, gray typically means non-interruptible
@@ -1036,11 +1023,11 @@ function Nameplate:UpdateNameplate(frame, customPlate)
                     end
                 end
                 
-                -- Apply our custom colors
-                if not isInterruptible and db.castColorNotInterruptible then
-                    r, g, b = unpack(db.castColorNotInterruptible)
-                elseif db.castColorInterruptible then
-                    r, g, b = unpack(db.castColorInterruptible)
+                -- Use color system colors
+                if not isInterruptible then
+                    r, g, b = 0.7, 0.7, 0.7  -- Gray for non-interruptible
+                else
+                    r, g, b = AzeriteMOP:GetColor("nameplateCastBar")
                 end
                 
                 customPlate.castBar:SetStatusBarColor(r, g, b)
@@ -1610,15 +1597,17 @@ function Nameplate:UpdateNameplateCastBar(unit)
         end
         
         -- Set cast bar color based on interruptibility and type
-        local db = AzeriteMOP.db.nameplate
-        local r, g, b = 1, 0.7, 0  -- Default
+        local r, g, b
         
-        if castInfo.notInterruptible and db.castColorNotInterruptible then
-            r, g, b = unpack(db.castColorNotInterruptible)
-        elseif castInfo.isChannel and db.castColorChanneled then
-            r, g, b = unpack(db.castColorChanneled)
-        elseif db.castColorInterruptible then
-            r, g, b = unpack(db.castColorInterruptible)
+        if castInfo.notInterruptible then
+            r, g, b = 0.7, 0.7, 0.7  -- Gray for non-interruptible
+        elseif castInfo.isChannel then
+            -- Use a slightly different color for channeled casts if desired
+            r, g, b = AzeriteMOP:GetColor("nameplateCastBar")
+            -- Make it slightly greener for channels
+            g = math.min(1, g + 0.2)
+        else
+            r, g, b = AzeriteMOP:GetColor("nameplateCastBar")
         end
         
         customPlate.castBar:SetStatusBarColor(r, g, b)
@@ -1995,7 +1984,8 @@ function Nameplate:SetupSlashCommands()
                     customPlate.castBar:SetValue(1.5)
                     customPlate.castBar:Show()
                     customPlate.castBar:SetAlpha(1)
-                    customPlate.castBar:SetStatusBarColor(1, 0.7, 0)
+                    local cr, cg, cb = AzeriteMOP:GetColor("nameplateCastBar")
+                    customPlate.castBar:SetStatusBarColor(cr, cg, cb)
                     
                     -- Show all cast bar elements
                     if customPlate.castBackdrop then
@@ -2333,6 +2323,164 @@ function Nameplate:SetupSlashCommands()
             print("  /azplates spellname [on|off] - Toggle spell name display")
         end
     end
+end
+
+-- Texture update support
+function Nameplate:UpdateAllTextures()
+    if not AzeriteMOP.db.textures then
+        return
+    end
+    
+    -- Update textures for all active nameplates
+    for frame, customPlate in pairs(self.activePlates) do
+        self:UpdateNameplateTextures(customPlate)
+    end
+end
+
+function Nameplate:UpdateNameplateTextures(plate)
+    if not plate or not AzeriteMOP.db.textures then
+        return
+    end
+    
+    -- Update health bar texture
+    if plate.healthBar then
+        local healthTexture = AzeriteMOP:GetTexture("healthBar")
+        plate.healthBar:SetStatusBarTexture(healthTexture)
+    end
+    
+    -- Update cast bar texture
+    if plate.castBar then
+        local castTexture = AzeriteMOP:GetTexture("castBar")
+        plate.castBar:SetStatusBarTexture(castTexture)
+    end
+    
+    -- Update background textures
+    local bgTexture = AzeriteMOP:GetTexture("barBackground")
+    if plate.backdrop then
+        plate.backdrop:SetTexture(bgTexture)
+    end
+    if plate.castBG then
+        plate.castBG:SetTexture(bgTexture)
+    end
+end
+
+-- Color update support
+function Nameplate:UpdateAllColors()
+    if not AzeriteMOP.db.colors then
+        return
+    end
+    
+    -- Update colors for all active nameplates
+    for frame, customPlate in pairs(self.activePlates) do
+        self:UpdateNameplateColors(customPlate)
+    end
+end
+
+function Nameplate:UpdateNameplateColors(plate)
+    if not plate or not AzeriteMOP.db.colors then
+        return
+    end
+    
+    local unit = plate.unit
+    
+    -- Update health bar color based on reaction
+    if plate.healthBar then
+        local colorKey = "nameplateHealthNeutral"
+        
+        if unit and UnitExists(unit) then
+            -- We have a valid unit, use it to determine reaction
+            if UnitIsFriend(unit, "player") then
+                colorKey = "nameplateHealthFriendly"
+            elseif UnitIsEnemy(unit, "player") then
+                colorKey = "nameplateHealthHostile"
+            end
+        else
+            -- No unit token, default to hostile for most nameplates
+            -- (Most nameplates are enemies in combat)
+            colorKey = "nameplateHealthHostile"
+        end
+        
+        -- Check for class colors
+        if unit and UnitExists(unit) and AzeriteMOP.db.colors.useClassColors and UnitIsPlayer(unit) then
+            local _, class = UnitClass(unit)
+            if class and CLASS_COLORS[class] then
+                local color = CLASS_COLORS[class]
+                plate.healthBar:SetStatusBarColor(color[1], color[2], color[3])
+            else
+                local hr, hg, hb = AzeriteMOP:GetColor(colorKey)
+                plate.healthBar:SetStatusBarColor(hr, hg, hb)
+            end
+        else
+            local hr, hg, hb = AzeriteMOP:GetColor(colorKey)
+            plate.healthBar:SetStatusBarColor(hr, hg, hb)
+        end
+    end
+    
+    -- Update health background
+    if plate.backdrop then
+        local hbr, hbg, hbb = AzeriteMOP:GetColor("nameplateHealthBg")
+        plate.backdrop:SetVertexColor(hbr, hbg, hbb, 0.8)
+    end
+    
+    -- Update name text color
+    if plate.nameText then
+        local tr, tg, tb = AzeriteMOP:GetColor("nameplateNameText")
+        plate.nameText:SetTextColor(tr, tg, tb)
+    end
+    
+    -- Update level text color
+    if plate.levelText then
+        local lr, lg, lb = AzeriteMOP:GetColor("nameplateLevelText")
+        plate.levelText:SetTextColor(lr, lg, lb)
+    end
+    
+    -- Update cast bar colors (will be applied when cast starts)
+    -- Cast bar colors are set dynamically during casting
+    
+    if plate.castText then
+        local ctr, ctg, ctb = AzeriteMOP:GetColor("castBarText")
+        plate.castText:SetTextColor(ctr, ctg, ctb)
+    end
+    
+    if plate.castTime then
+        local ctr2, ctg2, ctb2 = AzeriteMOP:GetColor("castBarTimeText")
+        plate.castTime:SetTextColor(ctr2, ctg2, ctb2)
+    end
+end
+
+-- Global scale support
+function Nameplate:ApplyGlobalScale(scale)
+    if not AzeriteMOP.db.nameplate then
+        return
+    end
+    
+    -- Apply scale to all active nameplates
+    for frame, customPlate in pairs(self.activePlates) do
+        if customPlate and customPlate.container then
+            customPlate.container:SetScale(scale)
+        end
+    end
+    
+    -- Store the global scale for new nameplates
+    self.currentGlobalScale = scale
+end
+
+function Nameplate:RestoreIndividualScales()
+    if not AzeriteMOP.db.nameplate then
+        return
+    end
+    
+    local individualScale = AzeriteMOP.db.nameplate.scale or 1.0
+    
+    -- Restore individual scale to all active nameplates
+    for frame, customPlate in pairs(self.activePlates) do
+        if customPlate and customPlate.container then
+            customPlate.container:SetScale(individualScale)
+        end
+    end
+    
+    -- Clear the global scale
+    self.currentGlobalScale = nil
 end
 
 -- Initialize slash commands
